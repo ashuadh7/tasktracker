@@ -6,30 +6,36 @@ argument rather than a decoration -- so a change here changes what the chart
 says, not just how it looks. Nothing in this file imports matplotlib or knows
 what a figure is.
 
-Only targeted work is saturated. Everything you cannot not do is a
-desaturated blue-grey that recedes. The ranking IS the palette.
+Three independent rankings share the chart, not one flat scale:
+  - work axis: targeted_work > work > obligations > necessities -- one blue
+    hue, saturation and lightness moving together so it reads as one ramp.
+  - flag axis: slack > rest -- a second hue (amber), since slack is a thing
+    to notice and address, not a quieter shade of the same blue.
+  - background axis: sleep > unlogged -- barely distinguishable; position in
+    the stack already carries the meaning, colour is just a tiebreaker.
 """
 
-# One hue, ranked by how much attention the category deserves. Targeted work
-# is the only saturated colour on the chart. Changing a hex changes what the
+# Ranked ascending -- least attention-grabbing first, so this list doubles as
+# the chart's bottom-to-top stacking order. Changing a hex changes what the
 # chart argues, so change them deliberately.
 BUCKETS = [
-    ("sleep", "#AAB8C5"),          # background   - pale blue-grey
-    ("necessities", "#C2CFD9"),    # background   - palest blue-grey
-    ("obligations", "#536578"),    # background   - dark muted navy-grey
-    ("rest", "#9DB6CF"),           # tertiary     - soft dusty blue
-    ("work", "#5B7DB1"),           # secondary    - medium slate-blue
-    ("targeted_work", "#2563EB"),  # PRIMARY      - vivid cobalt
-    ("slack", "#7C72B8"),          # secondary    - muted blue-violet
+    ("sleep", "#B1B8C4"),          # background   - pale blue-grey
+    ("rest", "#D0C1AF"),           # flag, low    - soft dusty amber
+    ("slack", "#C2822E"),          # flag, HIGH   - vivid amber
+    ("necessities", "#C9CFD9"),    # work, lowest - palest blue
+    ("obligations", "#7591BD"),    # work         - muted mid blue
+    ("work", "#4175C8"),           # work         - medium blue
+    ("targeted_work", "#1B58BB"),  # work, HIGHEST- vivid cobalt
 ]
 BUCKET_COLOR = dict(BUCKETS)
 BUCKET_ORDER = [b for b, _ in BUCKETS]
 
-# Stack order, bottom -> top. Sleep appears three times: the block that opens
-# the day, naps in among everything else, and the block that closes it.
+# Stack order, bottom -> top, matching the ranking above. Sleep appears three
+# times: the block that opens the day, naps in among everything else, and the
+# block that closes it.
 SLOTS = [
     "sleep_leading",
-    "necessities", "obligations", "rest", "work", "targeted_work", "slack",
+    "rest", "slack", "necessities", "obligations", "work", "targeted_work",
     "sleep_nap",
     "sleep_trailing",
 ]
@@ -42,12 +48,12 @@ TIERS = [
     ("reading", [("fiction", "#4F6F8F"),
                  ("non-fiction", "#7895AE"),
                  ("article", "#A9BDCD")]),
-    ("audio", [("podcast", "#5F8583"),
-               ("audiobook", "#91AAA7")]),
-    ("self-care", [("self-improvement", "#786F8D"),
-                   ("hobby", "#9B92AA"),
-                   ("physical", "#718673"),
-                   ("mental", "#9AAA9B")]),
+    ("audio", [("audiobook", "#498D84"),
+               ("podcast", "#95B2AE")]),
+    ("self-care", [("self-improvement", "#665393"),
+                   ("hobby", "#A9A2B9"),
+                   ("physical", "#4F7E4E"),
+                   ("mental", "#93AA92")]),
 ]
 TIER_ORDER = [t for t, _ in TIERS]
 # The tier's darkest category stands in for it wherever one swatch is needed.
@@ -55,7 +61,7 @@ TIER_COLOR = {t: cats[0][1] for t, cats in TIERS}
 GROWTH_MODES = ["concurrent", "dedicated"]
 
 # Not a bucket - this is absent data, so it gets the faintest neutral there is.
-UNLOGGED_COLOR = "#E5E7EB"
+UNLOGGED_COLOR = "#E6E8EA"
 
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
