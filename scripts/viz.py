@@ -261,6 +261,15 @@ def hm(minutes):
     return f"{minutes // 60}h{minutes % 60:02d}"
 
 
+def ampm(hour):
+    """15 -> '3pm'. 0 and 24 both -> '12am' -- the axis runs midnight to
+    midnight, so both ends of the timeline are the same instant."""
+    hour = hour % 24
+    period = "am" if hour < 12 else "pm"
+    hour12 = hour % 12 or 12
+    return f"{hour12}{period}"
+
+
 def truncate(text, n):
     text = str(text or "").strip()
     return text if len(text) <= n else text[:n - 1] + "…"
@@ -525,8 +534,10 @@ class Viz:
                            zorder=0, linewidth=0)
 
         untimed = {}
+        totals = {}
         for i, day in enumerate(days):
             rows = frame[frame["date"] == pd.Timestamp(day)]
+            totals[i] = int(rows["minutes"].sum())
             for _, row in rows.iterrows():
                 start, end = row["start"], row["end"]
                 if not start or not end:
@@ -538,22 +549,41 @@ class Viz:
                     b = 24.0
                 ax.barh(i, b - a, left=a, height=0.55, color=color,
                         edgecolor=SURFACE, linewidth=0.8, zorder=3)
-                if week and (b - a) >= 1.4:
+                # A block trailing to midnight centres close enough to the
+                # right margin to collide with the day total drawn there.
+                if week and (b - a) >= 1.4 and b < 24.0:
                     ax.text((a + b) / 2, i, hm(row["minutes"]), ha="center",
                             va="center", fontsize=7, color=ink_on(color),
                             zorder=4)
 
-        # Untimed rows cannot be placed, and pretending otherwise would be a
-        # fabrication. They get counted inside the right margin instead.
-        for i, mins in untimed.items():
-            ax.text(23.8, i, f"{hm(mins)} untimed", fontsize=7,
-                    color=MUTED, va="center", ha="right", zorder=5)
+        # The day's full total for this selection -- placed blocks plus any
+        # untimed minutes -- so it agrees with the side panel, which is the
+        # number it will be checked against. Untimed rows can't be placed on
+        # the clock, so their share of the total is called out beside it,
+        # secondary and to its left -- it only needs reading when it explains
+        # a gap between the total and what's actually drawn. Both sit on one
+        # baseline, not stacked, because a day row is too short to hold two
+        # lines without them running together.
+        #
+        # Week-only, like the inline per-block labels above: a month row is a
+        # few pixels tall, nowhere near enough for text between neighbours.
+        if week:
+            for i, mins in totals.items():
+                if mins <= 0:
+                    continue
+                if i in untimed:
+                    ax.text(21.6, i, f"({hm(untimed[i])} untimed)",
+                            fontsize=6.5, color=MUTED, va="center",
+                            ha="right", zorder=5)
+                ax.text(23.8, i, hm(mins), fontsize=7.5, color=INK_2,
+                        va="center", ha="right", zorder=5)
 
         ax.set_xlim(0, 24)
         ax.set_ylim(n - 0.5, -0.5)             # first day at the top
         ax.set_xticks(range(0, 25, 3))
-        ax.set_xticklabels([f"{h:02d}:00" for h in range(0, 25, 3)],
+        ax.set_xticklabels([ampm(h) for h in range(0, 25, 3)],
                            fontsize=8, color=MUTED)
+        ax.set_xticks(range(0, 25), minor=True)
         ax.set_yticks(range(n))
         if week:
             ax.set_yticklabels([f"{d:%a} {d.day}" for d in days],
@@ -562,13 +592,15 @@ class Viz:
             ax.set_yticklabels([str(d.day) if d.day % 5 == 0 or d.day == 1
                                 else "" for d in days],
                                fontsize=7, color=MUTED)
-        ax.grid(axis="x", color=GRID, linewidth=0.8, zorder=1)
+        ax.grid(axis="x", which="major", color=GRID, linewidth=0.8, zorder=1)
+        ax.grid(axis="x", which="minor", color=blend(GRID, 0.6),
+                linewidth=0.6, zorder=1)
         ax.set_axisbelow(False)
         for side in ("top", "right", "left"):
             ax.spines[side].set_visible(False)
         ax.spines["bottom"].set_color(BASELINE)
         ax.spines["bottom"].set_linewidth(0.8)
-        ax.tick_params(length=0)
+        ax.tick_params(which="both", length=0)
 
     def draw_bars(self, days, data, day_labels=False):
         ax = self.ax
