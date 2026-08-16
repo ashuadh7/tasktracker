@@ -11,6 +11,7 @@ E:\Planner\
 ├── tracker\              <- this folder. Data at the root, code in scripts\
 │   ├── *.csv
 │   ├── scripts\          <- check.py, viz.py, sync_plan.py
+│   │   └── timeviz\      <- the visualizer, split by layer; see its __init__
 │   └── skill\            <- the phone-side log-my-time skill
 └── Weekly Planner\       <- planning workflow and weekly checklists
 ```
