@@ -16,8 +16,11 @@ Navigation:
     t  jumps back to today
 
 Selection:
-    click any segment      select that bucket (or growth category)
-    click it again, or Esc clear the selection
+    hover a segment         see that row's activity, time, duration, note
+    click a segment         select that bucket (or growth category), and
+                            scroll the panel below to that exact row
+    click a different row   switch the highlight, even within the same bucket
+    click it again, or Esc  clear the selection
 
 Selecting dims everything else, in the bars and in the index at once, so a
 category can be compared straight across the week. The panel underneath then
@@ -229,6 +232,22 @@ def load():
     return log, plan, growth
 
 
+def row_order(frame, days, column_field):
+    """day index -> column value -> ordered list of row ids (frame index),
+    in the same order draw_detail lists them (`["date", "start"]`). This is
+    what lets a stacked bar's hit registry point at a row instead of just the
+    slot/key it belongs to."""
+    out = {i: {} for i in range(len(days))}
+    if frame.empty:
+        return out
+    day_pos = {pd.Timestamp(d): i for i, d in enumerate(days)}
+    window = frame[frame["date"].isin(day_pos)].sort_values(["date", "start"])
+    for row_id, row in window.iterrows():
+        i = day_pos[row["date"]]
+        out[i].setdefault(row[column_field], []).append(row_id)
+    return out
+
+
 def matrix(frame, days, columns, column_field):
     """days -> DataFrame indexed by date, one column per slot, in minutes."""
     stamps = pd.DatetimeIndex(days)
@@ -302,9 +321,13 @@ class Viz:
         self.side.axis("off")
 
         # Hit-test geometry, rebuilt on every draw: day index -> list of
-        # (key, bottom, top) in hours.
+        # (row_id, key, bottom, top) in hours. row_id is None for spans with
+        # no underlying row (the unlogged gap).
         self._bar_hits = {}
         self._strip_hits = {}
+        # Timeline hit geometry: day index -> list of (row_id, source, lo, hi)
+        # in clock hours. Only timed rows get an entry -- see draw_timeline.
+        self._timeline_hits = {}
         # Side index rows: list of (("bucket", name) | ("growth", name), low, high)
         # in the side axes' own 0-1 fraction coordinates. Tier headings and the
         # unlogged row are never appended, which is what keeps them inert.
@@ -312,6 +335,21 @@ class Viz:
         # The detail list scrolls rather than changing shape when it is long.
         self._detail_offset = 0
         self._detail_total = 0
+        # The row a click resolved to, highlighted in the detail list. Not
+        # the same thing as self.sel: side-panel clicks select a whole
+        # bucket/category with no specific row.
+        self._selected_row = None
+
+        # Hover tooltip. One annotation artist per chart axes, `animated` so
+        # a normal canvas draw skips it -- which is what makes the bg cache
+        # below a clean "no tooltip" snapshot to blit back over. Both dicts
+        # are rebuilt every full draw(); see _on_draw_event and the bottom of
+        # draw_bars/draw_strip/draw_timeline.
+        self._tooltip = {}
+        self._bg = {}
+        self._hover_row = None
+        self._hover_source = None
+        self._hover_ax = None
 
         self._buttons = []
         for label, x, handler in (
@@ -331,6 +369,7 @@ class Viz:
         self.fig.canvas.mpl_connect("button_press_event", self.on_click)
         self.fig.canvas.mpl_connect("scroll_event", self.on_scroll)
         self.fig.canvas.mpl_connect("motion_notify_event", self.on_hover)
+        self.fig.canvas.mpl_connect("draw_event", self._on_draw_event)
         self.draw()
 
     # -- range -------------------------------------------------------------
@@ -390,11 +429,16 @@ class Viz:
             self.today()
         elif event.key == "escape" and self.sel:
             self.sel = None
+            self._selected_row = None
             self._detail_offset = 0
             self.draw()
 
     def on_scroll(self, event):
-        """Scroll the detail list. Anywhere over the lower panel."""
+        """Scroll the detail list. Anywhere over the lower panel.
+
+        Manual scrolling is allowed even with a row highlighted -- the
+        highlight stays where it is, including off screen, rather than
+        snapping back. Auto-scroll only happens on selection."""
         if event.inaxes is not self.detail or not self.sel:
             return
         step = 1 if event.button == "down" else -1
@@ -406,38 +450,81 @@ class Viz:
 
     def on_click(self, event):
         """Selection is a toggle: clicking the current selection clears it,
-        and so does clicking a gap. Nothing needs a separate deselect."""
+        and so does clicking a gap. A click that resolves to a specific row
+        (bars, strip) also scrolls the detail list to that row and highlights
+        it -- clicking a *different* row switches the highlight even when it
+        is the same bucket, and only clicking the same row twice clears."""
         if event.xdata is None or event.ydata is None:
             return
         if event.inaxes is self.ax:
             hit = self._hit(self._bar_hits, event)
-            new = None
-            if hit and hit != "unlogged":
-                new = ("bucket", SLOT_BUCKET[hit])
+            row_id, key = hit if hit else (None, None)
+            new = ("bucket", SLOT_BUCKET[key]) if key and key != "unlogged" else None
+            self._apply_click(new, row_id)
         elif event.inaxes is self.strip:
             hit = self._hit(self._strip_hits, event)
-            new = ("growth", hit.split("|")[1]) if hit else None
+            row_id, key = hit if hit else (None, None)
+            new = ("growth", key.split("|")[1]) if key else None
+            self._apply_click(new, row_id)
         elif event.inaxes is self.side:
-            new = self._side_hit(event)
+            self._apply_click(self._side_hit(event), None)
+
+    def _apply_click(self, new_sel, row_id):
+        same_row = row_id is not None and row_id == self._selected_row
+        same_no_row = row_id is None and new_sel == self.sel
+        if new_sel is None or same_row or same_no_row:
+            self.sel = None
+            self._selected_row = None
+            self._detail_offset = 0
         else:
-            return
-        self.sel = None if new == self.sel else new
-        self._detail_offset = 0
+            self.sel = new_sel
+            self._selected_row = row_id
+            self._scroll_to_selected_row()
         self.draw()
+
+    def _scroll_to_selected_row(self):
+        """Set _detail_offset so the newly selected row is on screen, with a
+        line or two of context above it rather than pinned to the very top."""
+        self._detail_offset = 0
+        if self._selected_row is None or not self.sel:
+            return
+        frame, _, _ = self.selection_frame(self.days())
+        if frame.empty:
+            return
+        order = list(frame.sort_values(["date", "start"]).index)
+        try:
+            pos = order.index(self._selected_row)
+        except ValueError:
+            return
+        self._detail_offset = max(0, min(pos - 2, max(0, len(order) - 1)))
 
     def _hit(self, hits, event):
         idx = int(round(event.xdata))
         if idx not in hits or abs(event.xdata - idx) > 0.45:
             return None
-        for key, low, high in hits[idx]:
+        for row_id, key, low, high in hits[idx]:
             if low <= event.ydata < high:
-                return key
+                return row_id, key
         return None
 
     def _side_hit(self, event):
         for key, low, high in self._side_hits:
             if low <= event.ydata < high:
                 return key
+        return None
+
+    def _timeline_hit(self, event):
+        """(row_id, source) under the cursor in the timeline, or None. The
+        timeline already draws one bar per row, so this is a direct lookup --
+        no subdivision needed, unlike the two stacked charts."""
+        if event.xdata is None or event.ydata is None:
+            return None
+        idx = int(round(event.ydata))
+        if idx not in self._timeline_hits or abs(event.ydata - idx) > 0.275:
+            return None
+        for row_id, source, lo, hi in self._timeline_hits[idx]:
+            if lo <= event.xdata < hi:
+                return row_id, source
         return None
 
     def on_hover(self, event):
@@ -449,6 +536,95 @@ class Viz:
                 and self._side_hit(event) is not None):
             cursor = Cursors.HAND
         self.fig.canvas.set_cursor(cursor)
+        self._update_hover(event)
+
+    def _update_hover(self, event):
+        """Resolve the cursor to a row (or nothing) and repaint the tooltip
+        only if that row actually changed. Routing this through draw() would
+        rebuild five axes and hundreds of text objects on every mouse move --
+        instead this blits a single cached background plus one annotation."""
+        ax = event.inaxes
+        row_id = source = None
+        if ax is self.ax:
+            hit = self._hit(self._bar_hits, event)
+            if hit and hit[0] is not None:
+                row_id, source = hit[0], "log"
+        elif ax is self.strip:
+            hit = self._hit(self._strip_hits, event)
+            if hit and hit[0] is not None:
+                row_id, source = hit[0], "growth"
+        elif ax is self.timeline:
+            hit = self._timeline_hit(event)
+            if hit is not None:
+                row_id, source = hit
+
+        if row_id == self._hover_row and ax is self._hover_ax:
+            return
+
+        prev_ax = self._hover_ax
+        self._hover_row, self._hover_source, self._hover_ax = row_id, source, ax
+        if prev_ax is not None and prev_ax is not ax:
+            self._paint_tooltip(prev_ax, None, None, None)
+        self._paint_tooltip(ax, row_id, source, event)
+
+    def _paint_tooltip(self, ax, row_id, source, event):
+        bg = self._bg.get(ax)
+        artist = self._tooltip.get(ax)
+        if bg is None or artist is None:
+            return
+        canvas = self.fig.canvas
+        canvas.restore_region(bg)
+        if row_id is not None:
+            artist.xy = (event.xdata, event.ydata)
+            artist.set_text(self._tooltip_text(row_id, source))
+            artist.set_visible(True)
+            ax.draw_artist(artist)
+        else:
+            artist.set_visible(False)
+        canvas.blit(ax.bbox)
+
+    def _tooltip_text(self, row_id, source):
+        frame = self.log if source == "log" else self.growth
+        row = frame.loc[row_id]
+        when = (f"{row['start']}–{row['end']}"
+                if row["start"] and row["end"] else "untimed")
+        label = str(row.get("activity", ""))
+        project = str(row.get("project", "") or "")
+        if project:
+            label = f"{project} · {label}"
+        if source == "growth":
+            label += f"  [{row['mode']} · {row['bucket']}]"
+        lines = [truncate(label, 60),
+                 f"{when}   {hm(row['minutes']) or '0h00'}"]
+        note = truncate(row.get("notes", ""), 70)
+        if note:
+            lines.append(note)
+        return "\n".join(lines)
+
+    def _make_tooltip(self, ax):
+        """One annotation per axes, invisible until hovered. `animated` is
+        what excludes it from the normal canvas draw that _on_draw_event
+        snapshots -- otherwise the cached background would have to be
+        repainted to erase a stale tooltip drawn into it."""
+        art = ax.annotate(
+            "", xy=(0, 0), xytext=(14, 14), textcoords="offset points",
+            fontsize=8, color=INK, va="top", ha="left", zorder=10,
+            bbox=dict(boxstyle="round,pad=0.35", facecolor=SURFACE,
+                      edgecolor=INK_2, linewidth=0.8, alpha=0.97),
+            annotation_clip=False,
+        )
+        art.set_visible(False)
+        art.set_animated(True)
+        return art
+
+    def _on_draw_event(self, event):
+        """Snapshot a clean background per chart axes for hover blitting.
+        Fires after every real canvas draw (draw_idle flushing, resize,
+        savefig)."""
+        self._bg = {}
+        for a in (self.ax, self.strip, self.timeline):
+            if a.get_visible():
+                self._bg[a] = self.fig.canvas.copy_from_bbox(a.bbox)
 
     # -- selection helpers -------------------------------------------------
 
@@ -547,8 +723,10 @@ class Viz:
         ax.set_facecolor(SURFACE)
 
         frame, color, _ = self.selection_frame(days)
+        source = "log" if self.sel[0] == "bucket" else "growth"
         n = len(days)
         week = self.mode == "week"
+        self._timeline_hits = {i: [] for i in range(n)}
 
         # A faint band per day, so empty days read as empty rather than absent.
         for i in range(n):
@@ -561,7 +739,7 @@ class Viz:
         for i, day in enumerate(days):
             rows = frame[frame["date"] == pd.Timestamp(day)]
             totals[i] = int(rows["minutes"].sum())
-            for _, row in rows.iterrows():
+            for row_id, row in rows.iterrows():
                 start, end = row["start"], row["end"]
                 if not start or not end:
                     untimed[i] = untimed.get(i, 0) + int(row["minutes"])
@@ -572,6 +750,7 @@ class Viz:
                     b = 24.0
                 ax.barh(i, b - a, left=a, height=0.55, color=color,
                         edgecolor=SURFACE, linewidth=0.8, zorder=3)
+                self._timeline_hits[i].append((row_id, source, a, b))
                 # A block trailing to midnight centres close enough to the
                 # right margin to collide with the day total drawn there.
                 if week and (b - a) >= 1.4 and b < 24.0:
@@ -625,11 +804,14 @@ class Viz:
         ax.spines["bottom"].set_linewidth(0.8)
         ax.tick_params(which="both", length=0)
 
+        self._tooltip[ax] = self._make_tooltip(ax)
+
     def draw_bars(self, days, data, day_labels=False):
         ax = self.ax
         ax.clear()
         ax.set_facecolor(SURFACE)
         self._bar_hits = {i: [] for i in range(len(days))}
+        rows_by_day_slot = row_order(self.log, days, "slot")
 
         week = self.mode == "week"
         width = 0.62 if week else 0.74
@@ -653,7 +835,18 @@ class Viz:
             for i, v in enumerate(vals):
                 if v <= 0:
                     continue
-                self._bar_hits[i].append((key, bottom[i], bottom[i] + v))
+                # The band is drawn as one segment (v hours) but hit-tested as
+                # however many rows make it up, walked in stack order so their
+                # sub-ranges tile it exactly -- the drawing never changes.
+                row_ids = rows_by_day_slot.get(i, {}).get(key, [])
+                lo = bottom[i]
+                if row_ids:
+                    for rid in row_ids:
+                        hi = lo + self.log.at[rid, "minutes"] / 60
+                        self._bar_hits[i].append((rid, key, lo, hi))
+                        lo = hi
+                else:
+                    self._bar_hits[i].append((None, key, lo, bottom[i] + v))
                 if v * 60 >= label_floor:
                     ax.text(i, bottom[i] + v / 2, hm(v * 60), ha="center",
                             va="center", fontsize=7.5, color=ink, zorder=4)
@@ -718,6 +911,8 @@ class Viz:
                   ncol=8, frameon=False, fontsize=8.5, handlelength=1.1,
                   handleheight=1.1, columnspacing=1.4, labelcolor=INK_2)
 
+        self._tooltip[ax] = self._make_tooltip(ax)
+
     def draw_strip(self, days, gdata, day_labels=True):
         """The growth ledger, drawn under the day it belongs to.
 
@@ -728,6 +923,7 @@ class Viz:
         ax.clear()
         ax.set_facecolor(SURFACE)
         self._strip_hits = {i: [] for i in range(len(days))}
+        rows_by_day_key = row_order(self.growth, days, "key")
 
         week = self.mode == "week"
         width = 0.62 if week else 0.74
@@ -750,7 +946,15 @@ class Viz:
             for i, v in enumerate(vals):
                 if v <= 0:
                     continue
-                self._strip_hits[i].append((key, bottom[i], bottom[i] + v))
+                row_ids = rows_by_day_key.get(i, {}).get(key, [])
+                lo = bottom[i]
+                if row_ids:
+                    for rid in row_ids:
+                        hi = lo + self.growth.at[rid, "minutes"] / 60
+                        self._strip_hits[i].append((rid, key, lo, hi))
+                        lo = hi
+                else:
+                    self._strip_hits[i].append((None, key, lo, bottom[i] + v))
                 if v * 60 >= label_floor:
                     ax.text(i, bottom[i] + v / 2, hm(v * 60), ha="center",
                             va="center", fontsize=7, color=ink_on(shown),
@@ -807,6 +1011,8 @@ class Viz:
                       bbox_to_anchor=(0, -0.155 if promoted else -0.26),
                       ncol=6, frameon=False, fontsize=8.5, handlelength=1.1,
                       handleheight=1.1, columnspacing=1.4, labelcolor=INK_2)
+
+        self._tooltip[ax] = self._make_tooltip(ax)
 
     def draw_summary(self, days, data, gdata):
         ax = self.side
@@ -1012,11 +1218,16 @@ class Viz:
         y = 0.80
         i = first
         while i < len(rows):
-            _, row = rows[i]
+            row_id, row = rows[i]
             note = truncate(row.get("notes", ""), 104)
             need = 0.145 if note else 0.092
             if y - need < -0.04:
                 break
+            if row_id == self._selected_row:
+                # The row a click resolved to -- behind the text, not on top.
+                ax.add_patch(plt.Rectangle(
+                    (0, y - need + 0.018), 1, need, color=blend(color, 0.85),
+                    zorder=0, clip_on=False))
             when = (f"{row['start']}–{row['end']}"
                     if row["start"] and row["end"] else "—")
             ax.text(0.0, y, f"{row['date']:%a %b %d}", fontsize=8.5,
