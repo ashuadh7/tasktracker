@@ -451,9 +451,12 @@ class Viz:
     def on_click(self, event):
         """Selection is a toggle: clicking the current selection clears it,
         and so does clicking a gap. A click that resolves to a specific row
-        (bars, strip) also scrolls the detail list to that row and highlights
-        it -- clicking a *different* row switches the highlight even when it
-        is the same bucket, and only clicking the same row twice clears."""
+        (bars, strip, timeline) also scrolls the detail list to that row and
+        highlights it -- clicking a *different* row switches the highlight
+        even when it is the same bucket, and only clicking the same row
+        twice clears. The timeline only ever shows rows already inside the
+        current selection, so a click there never changes self.sel itself --
+        only which row is highlighted."""
         if event.xdata is None or event.ydata is None:
             return
         if event.inaxes is self.ax:
@@ -466,6 +469,9 @@ class Viz:
             row_id, key = hit if hit else (None, None)
             new = ("growth", key.split("|")[1]) if key else None
             self._apply_click(new, row_id)
+        elif event.inaxes is self.timeline:
+            hit = self._timeline_hit(event)
+            self._apply_click(self.sel, hit[0] if hit else None)
         elif event.inaxes is self.side:
             self._apply_click(self._side_hit(event), None)
 
