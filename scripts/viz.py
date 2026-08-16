@@ -7,13 +7,15 @@ drawn as a companion strip beneath them.
     python viz.py              # opens on the current week
     python viz.py 2026-08-11   # opens on the week containing that date
     python viz.py --month      # start in month view
+    python viz.py --day        # start in day view, on today
     python viz.py --png out.png            # render instead of opening a window
     python viz.py --png out.png --select slack   # render with slack selected
 
 Navigation:
     [< Prev] [Next >] buttons, or the left/right arrow keys
     [Week/Month] button, or the w / m keys
-    t  jumps back to today
+    [Day] button, or the d key -- jumps to today in day view
+    t  jumps back to today (stays in day view if already there)
 
 Selection:
     hover a segment         see that row's activity, time, duration, note
@@ -289,6 +291,15 @@ def ampm(hour):
     return f"{hour12}{period}"
 
 
+def clock_hm(minutes):
+    """615 -> '10:15am'. For saying how far into the day the log reaches."""
+    minutes = int(round(minutes)) % MINUTES_PER_DAY
+    h, m = divmod(minutes, 60)
+    period = "am" if h < 12 else "pm"
+    h12 = h % 12 or 12
+    return f"{h12}:{m:02d}{period}"
+
+
 def truncate(text, n):
     text = str(text or "").strip()
     return text if len(text) <= n else text[:n - 1] + "…"
@@ -357,6 +368,7 @@ class Viz:
             ("Next >", 0.155, self.next),
             ("Week / Month", 0.265, self.toggle),
             ("Today", 0.400, self.today),
+            ("Day", 0.510, self.day),
         ):
             axb = self.fig.add_axes([x, 0.012, 0.09, 0.034])
             btn = Button(axb, label, color="#f0efec", hovercolor="#e1e0d9")
@@ -375,6 +387,8 @@ class Viz:
     # -- range -------------------------------------------------------------
 
     def days(self):
+        if self.mode == "day":
+            return [self.anchor]
         if self.mode == "week":
             start = self.anchor - dt.timedelta(days=self.anchor.weekday())
             return [start + dt.timedelta(days=i) for i in range(7)]
@@ -384,6 +398,9 @@ class Viz:
 
     def title(self):
         days = self.days()
+        if self.mode == "day":
+            d = days[0]
+            return f"{d:%A} {d:%b} {d.day}, {d.year}"
         if self.mode == "week":
             a, b = days[0], days[-1]
             return (f"Week of {a:%a} {a:%b} {a.day} – "
@@ -395,6 +412,8 @@ class Viz:
     def step(self, direction):
         if self.mode == "week":
             self.anchor += dt.timedelta(days=7 * direction)
+        elif self.mode == "day":
+            self.anchor += dt.timedelta(days=direction)
         else:
             first = self.anchor.replace(day=1)
             self.anchor = (
@@ -413,8 +432,19 @@ class Viz:
         self.anchor = dt.date.today()
         self.draw()
 
+    def day(self, _=None):
+        """Enter day mode, always on today -- stepping back through days,
+        then toggling to week and back to day, would otherwise be
+        disorienting."""
+        self.anchor = dt.date.today()
+        self.mode = "day"
+        self.draw()
+
     def toggle(self, _=None):
-        self.mode = "month" if self.mode == "week" else "week"
+        if self.mode == "day":
+            self.mode = "week"
+        else:
+            self.mode = "month" if self.mode == "week" else "week"
         self.draw()
 
     def on_key(self, event):
@@ -425,6 +455,8 @@ class Viz:
         elif event.key in ("w", "m"):
             self.mode = "week" if event.key == "w" else "month"
             self.draw()
+        elif event.key == "d":
+            self.day()
         elif event.key == "t":
             self.today()
         elif event.key == "escape" and self.sel:
@@ -664,7 +696,16 @@ class Viz:
             if visible:
                 ax.set_position([MAIN_L, bottom, MAIN_W, height])
 
-        if kind is None:
+        if kind is None and self.mode == "day":
+            # A day has no second ledger column to show alongside the bar --
+            # growth already has its own readout in the side panel -- so the
+            # freed space goes to the clock timeline instead, showing every
+            # block rather than just a selection.
+            place(self.ax, 0.545, TOP - 0.545)
+            place(self.strip, 0, 0.01, visible=False)
+            place(self.timeline, 0.315, 0.135)
+            place(self.detail, BOTTOM, 0.205)
+        elif kind is None:
             place(self.ax, 0.425, TOP - 0.425)
             place(self.strip, 0.175, 0.155)
             place(self.timeline, 0, 0.01, visible=False)
@@ -694,7 +735,8 @@ class Viz:
         # Whichever chart is on top carries the day labels; the one below it
         # is either hidden or has an axis of its own.
         if self.ax.get_visible():
-            self.draw_bars(days, data, day_labels=kind == "bucket")
+            promoted = kind == "bucket" or (kind is None and self.mode == "day")
+            self.draw_bars(days, data, day_labels=promoted)
         if self.strip.get_visible():
             self.draw_strip(days, gdata, day_labels=kind != "bucket")
         if self.timeline.get_visible():
@@ -728,10 +770,21 @@ class Viz:
         ax.clear()
         ax.set_facecolor(SURFACE)
 
-        frame, color, _ = self.selection_frame(days)
-        source = "log" if self.sel[0] == "bucket" else "growth"
+        if self.sel:
+            frame, const_color, _ = self.selection_frame(days)
+            source = "log" if self.sel[0] == "bucket" else "growth"
+            color_of = lambda row: const_color
+        else:
+            # Day mode with nothing selected: every block for the one day,
+            # each in its own bucket colour -- there's no selection to
+            # narrow it to, and no need for one at n=1.
+            stamps = pd.DatetimeIndex(days)
+            frame = self.log[self.log["date"].isin(stamps)]
+            source = "log"
+            color_of = lambda row: BUCKET_COLOR[row["bucket"]]
+
         n = len(days)
-        week = self.mode == "week"
+        roomy = self.mode in ("week", "day")
         self._timeline_hits = {i: [] for i in range(n)}
 
         # A faint band per day, so empty days read as empty rather than absent.
@@ -754,12 +807,13 @@ class Viz:
                 b = to_hours(end)
                 if b <= a:                     # a block that ends at midnight
                     b = 24.0
+                color = color_of(row)
                 ax.barh(i, b - a, left=a, height=0.55, color=color,
                         edgecolor=SURFACE, linewidth=0.8, zorder=3)
                 self._timeline_hits[i].append((row_id, source, a, b))
                 # A block trailing to midnight centres close enough to the
                 # right margin to collide with the day total drawn there.
-                if week and (b - a) >= 1.4 and b < 24.0:
+                if roomy and (b - a) >= 1.4 and b < 24.0:
                     ax.text((a + b) / 2, i, hm(row["minutes"]), ha="center",
                             va="center", fontsize=7, color=ink_on(color),
                             zorder=4)
@@ -773,9 +827,10 @@ class Viz:
         # baseline, not stacked, because a day row is too short to hold two
         # lines without them running together.
         #
-        # Week-only, like the inline per-block labels above: a month row is a
-        # few pixels tall, nowhere near enough for text between neighbours.
-        if week:
+        # Week/day only, like the inline per-block labels above: a month row
+        # is a few pixels tall, nowhere near enough for text between
+        # neighbours.
+        if roomy:
             for i, mins in totals.items():
                 if mins <= 0:
                     continue
@@ -793,7 +848,7 @@ class Viz:
                            fontsize=8, color=MUTED)
         ax.set_xticks(range(0, 25), minor=True)
         ax.set_yticks(range(n))
-        if week:
+        if roomy:
             ax.set_yticklabels([f"{d:%a} {d.day}" for d in days],
                                fontsize=8, color=INK_2)
         else:
@@ -819,12 +874,12 @@ class Viz:
         self._bar_hits = {i: [] for i in range(len(days))}
         rows_by_day_slot = row_order(self.log, days, "slot")
 
-        week = self.mode == "week"
-        width = 0.62 if week else 0.74
+        roomy = self.mode in ("week", "day")
+        width = 0.62 if roomy else 0.74
         # A 2px surface gap between stacked segments, drawn as an edge in the
         # surface colour, so neighbouring fills never touch.
         edge = dict(edgecolor=SURFACE, linewidth=1.6)
-        label_floor = 45 if week else 10_000  # month bars are too thin to label
+        label_floor = 45 if roomy else 10_000  # month bars are too thin to label
         picked = self.sel_bucket()
         dimming = self.sel is not None
 
@@ -887,7 +942,7 @@ class Viz:
         # controls its own visibility with tick_params instead of touching
         # (and potentially blanking) content the other axes just set.
         if day_labels:
-            if self.mode == "week":
+            if roomy:
                 ax.set_xticklabels([f"{d:%a}\n{d:%b} {d.day}" for d in days],
                                    fontsize=9, color=INK_2)
             else:
@@ -931,10 +986,10 @@ class Viz:
         self._strip_hits = {i: [] for i in range(len(days))}
         rows_by_day_key = row_order(self.growth, days, "key")
 
-        week = self.mode == "week"
-        width = 0.62 if week else 0.74
+        roomy = self.mode in ("week", "day")
+        width = 0.62 if roomy else 0.74
         edge = dict(edgecolor=SURFACE, linewidth=1.2)
-        label_floor = 60 if week else 10_000
+        label_floor = 60 if roomy else 10_000
         picked = self.sel_category()
 
         x = range(len(days))
@@ -980,7 +1035,7 @@ class Viz:
         # x-axis, so only the axes showing labels sets them; the other only
         # toggles its own visibility.
         if day_labels:
-            if week:
+            if roomy:
                 ax.set_xticklabels([f"{d:%a}\n{d:%b} {d.day}" for d in days],
                                    fontsize=9, color=INK_2)
             else:
@@ -1069,9 +1124,21 @@ class Viz:
 
         rule(0.036, 0.030)
 
-        label = f"{n_logged} OF {n} DAYS LOGGED"
-        if n_partial:
-            label += f"  ·  {n_partial} IN PROGRESS"
+        if self.mode == "day":
+            # n=1 breaks both halves of the usual line: "1 OF 1 DAYS LOGGED"
+            # reads as an error when today just hasn't reached 1440 yet, and
+            # the /day average below restates the number directly above it.
+            # What actually answers "am I on track" here is how far into the
+            # day the log already reaches.
+            mins_today = int(per_day_total.iloc[0]) if len(per_day_total) else 0
+            if mins_today >= MINUTES_PER_DAY:
+                label = "day complete"
+            else:
+                label = f"{hm(mins_today) or '0h00'} logged · to {clock_hm(mins_today)}"
+        else:
+            label = f"{n_logged} OF {n} DAYS LOGGED"
+            if n_partial:
+                label += f"  ·  {n_partial} IN PROGRESS"
         ax.text(0, y, label, fontsize=8, color=MUTED)
         y -= 0.030
 
@@ -1089,10 +1156,15 @@ class Viz:
             ax.text(1, y - 0.010, hm(mins), fontsize=9,
                     color=INK if on else blend(MUTED, 0.45),
                     ha="right", fontfamily="monospace")
-            ax.text(1, y - 0.027, f"{hm(mins / n_logged)}/day", fontsize=7.5,
-                    color=MUTED if on else blend(MUTED, 0.55), ha="right")
-            self._side_hits.append((("bucket", bucket), y - 0.046, y))
-            y -= 0.046
+            if self.mode == "day":
+                # A single day's own average is itself -- the line above.
+                self._side_hits.append((("bucket", bucket), y - 0.030, y))
+                y -= 0.030
+            else:
+                ax.text(1, y - 0.027, f"{hm(mins / n_logged)}/day", fontsize=7.5,
+                        color=MUTED if on else blend(MUTED, 0.55), ha="right")
+                self._side_hits.append((("bucket", bucket), y - 0.046, y))
+                y -= 0.046
 
         if unlogged > 0:
             on = picked is None
@@ -1262,7 +1334,7 @@ class Viz:
 
 def main():
     args = sys.argv[1:]
-    mode = "month" if "--month" in args else "week"
+    mode = "day" if "--day" in args else "month" if "--month" in args else "week"
     png = select = None
     for flag in ("--png", "--select"):
         if flag in args:
