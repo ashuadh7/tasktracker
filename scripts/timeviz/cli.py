@@ -14,7 +14,7 @@ def parse(argv):
     """(anchor, mode, png, select) from the command line.
 
     Hand-rolled rather than argparse because the only positional is an
-    optional ISO date and the flags are three -- and because `viz.bat` passes
+    optional ISO date and the flags are two -- and because `viz.bat` passes
     whatever it was given straight through, so an unrecognised argument
     should be ignored rather than turned into a usage error and an exit.
     """

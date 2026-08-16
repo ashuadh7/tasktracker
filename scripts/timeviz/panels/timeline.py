@@ -20,6 +20,9 @@ class TimelinePanel(Panel):
     # Rows sit 1.0 apart and are drawn 0.55 tall, so half a bar's height is
     # where one row stops being the one you meant.
     TOLERANCE = 0.275
+    # Hours of margin past midnight, held clear of the clock for the day
+    # totals. Wide enough for "(22h30 untimed)  24h00", the longest they get.
+    GUTTER = 3.2
 
     def __init__(self, fig, rect):
         super().__init__(fig, rect)
@@ -58,6 +61,16 @@ class TimelinePanel(Panel):
 
         n = len(days)
         self.hits.reset(n)
+
+        # A selection puts a handful of blocks on each row and leaves the rest
+        # of it empty, so the day totals can be written inside the clock. With
+        # nothing selected every block is drawn and the rows run wall to wall
+        # -- there is no empty right edge to write into, and the totals would
+        # land on top of whatever ran up to midnight. They get a margin past
+        # midnight instead, and the clock gives up the width for it.
+        gutter = 0.0 if sel else self.GUTTER
+        total_x = 23.8 if sel else 24 + gutter
+        untimed_x = 21.6 if sel else total_x - 1.0
 
         # A faint band per day, so empty days read as empty rather than absent.
         for i in range(n):
@@ -107,13 +120,13 @@ class TimelinePanel(Panel):
                 if mins <= 0:
                     continue
                 if i in untimed:
-                    ax.text(21.6, i, f"({hm(untimed[i])} untimed)",
+                    ax.text(untimed_x, i, f"({hm(untimed[i])} untimed)",
                             fontsize=6.5, color=MUTED, va="center",
                             ha="right", zorder=5)
-                ax.text(23.8, i, hm(mins), fontsize=7.5, color=INK_2,
+                ax.text(total_x, i, hm(mins), fontsize=7.5, color=INK_2,
                         va="center", ha="right", zorder=5)
 
-        ax.set_xlim(0, 24)
+        ax.set_xlim(0, 24 + gutter)
         ax.set_ylim(n - 0.5, -0.5)             # first day at the top
         ax.set_xticks(range(0, 25, 3))
         ax.set_xticklabels([ampm(h) for h in range(0, 25, 3)],
@@ -135,6 +148,9 @@ class TimelinePanel(Panel):
             ax.spines[side].set_visible(False)
         ax.spines["bottom"].set_color(BASELINE)
         ax.spines["bottom"].set_linewidth(0.8)
+        # The axis line means "the clock", so it stops at midnight rather than
+        # running on under the totals margin. A no-op when there is no margin.
+        ax.spines["bottom"].set_bounds(0, 24)
         ax.tick_params(which="both", length=0)
 
         self.tooltip_artist()

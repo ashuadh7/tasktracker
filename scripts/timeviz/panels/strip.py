@@ -15,7 +15,7 @@ from matplotlib.patches import Patch
 from ..selection import shade_for
 from ..theme import (CATEGORY_COLOR, CATEGORY_TIER, GROWTH_COLOR, GROWTH_KEYS,
                      GROWTH_MODES, INK_2, MUTED, SURFACE, TIERS, ink_on)
-from .base import StackedPanel
+from .base import LEGEND_GAP, LEGEND_GAP_TIGHT, StackedPanel
 
 
 class StripPanel(StackedPanel):
@@ -24,8 +24,7 @@ class StripPanel(StackedPanel):
     LABEL_SIZE = 7
     LABEL_FLOOR = 60
 
-    def draw(self, days, gdata, ledger, sel, roomy, day_labels=True,
-             promoted=False):
+    def draw(self, days, gdata, ledger, sel, roomy, day_labels=True):
         ax = self.ax
         self.begin(days, roomy)
         rows_by_key = ledger.rows_by_key(days)
@@ -63,10 +62,13 @@ class StripPanel(StackedPanel):
         if handles:
             handles.append(Patch(facecolor=SURFACE, edgecolor=MUTED,
                                  hatch="////", label="concurrent"))
-            # Promoted to the top chart it is tall, so the same axes-fraction
-            # offset would throw the legend off the figure.
+            # Standing alone where the bars usually go, the strip is tall
+            # enough to afford the roomier gap; every shorter slot it lands in
+            # takes the tight one.
+            tall = self.ax.get_position().height > 0.3
             ax.legend(handles=handles, loc="upper left",
-                      bbox_to_anchor=(0, -0.155 if promoted else -0.26),
+                      bbox_to_anchor=(0, self.legend_anchor(
+                          LEGEND_GAP if tall else LEGEND_GAP_TIGHT)),
                       ncol=6, frameon=False, fontsize=8.5, handlelength=1.1,
                       handleheight=1.1, columnspacing=1.4, labelcolor=INK_2)
 
