@@ -13,7 +13,7 @@ from matplotlib.patches import Patch
 from ..selection import shade_for
 from ..theme import (BUCKET_COLOR, BUCKET_ORDER, INK_2, MUTED, SLOTS,
                      SLOT_BUCKET, UNLOGGED_COLOR, blend, ink_on)
-from .base import StackedPanel
+from .base import LEGEND_GAP, LEGEND_GAP_FLUSH, StackedPanel
 
 
 class BarsPanel(StackedPanel):
@@ -63,7 +63,8 @@ class BarsPanel(StackedPanel):
         handles.append(Patch(
             facecolor=shade_for(sel, UNLOGGED_COLOR, False), label="unlogged"))
         ax.legend(handles=handles, loc="upper left",
-                  bbox_to_anchor=(0, -0.155 if day_labels else -0.02),
+                  bbox_to_anchor=(0, self.legend_anchor(
+                      LEGEND_GAP if day_labels else LEGEND_GAP_FLUSH)),
                   ncol=8, frameon=False, fontsize=8.5, handlelength=1.1,
                   handleheight=1.1, columnspacing=1.4, labelcolor=INK_2)
 

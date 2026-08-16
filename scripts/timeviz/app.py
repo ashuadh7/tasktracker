@@ -5,6 +5,12 @@ every event to one of them, and redraws. It holds exactly two pieces of state
 of its own -- the window and the selection -- because everything else belongs
 to a panel.
 
+The clock timeline is the permanent primary chart: always on screen, one row
+per day, the day's blocks placed where they actually sit on the clock. Issue
+#5 ran this arrangement against the older one (stacked bars on top, timeline
+conjured only by a selection) for real and settled on this one -- time-of-day
+patterns read in one glance here and are invisible in any stacked view.
+
 Selecting dims everything else, in the bars and in the index at once, so a
 category can be compared straight across the week. The panel underneath then
 breaks the selection down into the rows that make it up.
@@ -124,9 +130,7 @@ class Viz:
         (bars, strip, timeline) also scrolls the detail list to that row and
         highlights it -- clicking a *different* row switches the highlight
         even when it is the same bucket, and only clicking the same row
-        twice clears. The timeline only ever shows rows already inside the
-        current selection, so a click there never changes self.sel itself --
-        only which row is highlighted."""
+        twice clears."""
         if event.xdata is None or event.ydata is None:
             return
         if event.inaxes is self.bars.ax:
@@ -141,10 +145,24 @@ class Viz:
             self._apply_click(new, band.row_id if band else None)
         elif event.inaxes is self.timeline.ax:
             band = self.timeline.hit(event)
-            self._apply_click(self.sel, band.row_id if band else None)
+            self._apply_click(self._from_timeline(band),
+                              band.row_id if band else None)
         elif event.inaxes is self.side.ax:
             band = self.side.hit(event)
             self._apply_click(band.key if band else None, None)
+
+    def _from_timeline(self, band):
+        """What a click on the timeline selects.
+
+        With something already selected the timeline is only showing rows from
+        inside it, so the click can't mean a new selection -- it just moves the
+        highlight. With nothing selected the timeline is the primary chart and
+        is showing the whole log, so clicking a block there means what
+        clicking it on the bar means: select its bucket.
+        """
+        if self.sel is not None or band is None:
+            return self.sel
+        return Selection(BUCKET, self.ledger.log.at[band.row_id, "bucket"])
 
     def clear(self):
         self.sel = None
@@ -220,41 +238,47 @@ class Viz:
     def layout(self):
         """Where the axes sit, which depends on what is selected.
 
-        Unselected, both ledgers are on screen at once -- that comparison is
-        the default question. Select something and the other ledger is not
-        answering the question any more, so it gives up its space to a
-        timeline of the selection.
+        The clock timeline is always on top, full width, and never moves.
+        Beneath it: unselected, both ledgers are on screen at once -- that
+        comparison is the default question. Select something and the other
+        ledger is not answering the question any more, so it gives up its
+        space to the selected one, promoted and given the row list below it.
         """
         kind = self.sel.kind if self.sel else None
+        self.timeline.place([MAIN_L, 0.590, MAIN_W, TOP - 0.590])
 
-        if kind is None and self.window.mode == "day":
-            # A day has no second ledger column to show alongside the bar --
-            # growth already has its own readout in the side panel -- so the
-            # freed space goes to the clock timeline instead, showing every
-            # block rather than just a selection.
-            self.bars.place([MAIN_L, 0.545, MAIN_W, TOP - 0.545])
-            self.strip.hide()
-            self.timeline.place([MAIN_L, 0.315, MAIN_W, 0.135])
-            self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.205])
-        elif kind is None:
-            self.bars.place([MAIN_L, 0.425, MAIN_W, TOP - 0.425])
-            self.strip.place([MAIN_L, 0.175, MAIN_W, 0.155])
-            self.timeline.hide()
+        if kind is None and self.window.mode != "day":
+            self.bars.place([MAIN_L, 0.325, MAIN_W, 0.215])
+            self.strip.place([MAIN_L, 0.180, MAIN_W, 0.100])
             self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.045])
+        elif kind is None:
+            # A day has no second ledger column to show alongside the bar --
+            # growth already has its own readout in the side panel.
+            self.bars.place([MAIN_L, 0.345, MAIN_W, 0.195])
+            self.strip.hide()
+            self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.185])
         else:
             top, hidden = ((self.bars, self.strip) if kind == BUCKET
                            else (self.strip, self.bars))
-            top.place([MAIN_L, 0.545, MAIN_W, TOP - 0.545])
+            top.place([MAIN_L, 0.345, MAIN_W, 0.195])
             hidden.hide()
-            self.timeline.place([MAIN_L, 0.315, MAIN_W, 0.135])
-            self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.205])
+            self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.185])
+
+    def _lowest_stacked(self):
+        """The bottom-most visible stacked chart, or None if neither is up.
+
+        Whichever it is carries the day labels the two share an x-axis for --
+        strip when both are up, since it always sits under bars; whichever one
+        is left when a selection hides the other.
+        """
+        shown = [p for p in (self.bars, self.strip) if p.visible]
+        return min(shown, key=lambda p: p.ax.get_position().y0, default=None)
 
     def draw(self):
         days = self.window.days()
         data = self.ledger.day_matrix(days)
         gdata = self.ledger.growth_matrix(days)
         self.layout()
-        kind = self.sel.kind if self.sel else None
         roomy = self.window.roomy
         # The title belongs to the figure, not to the bars -- selecting a
         # growth category hides the bars entirely and the week still needs a
@@ -264,17 +288,15 @@ class Viz:
                                              color=INK, fontweight="medium",
                                              va="center")
         self._title_text.set_text(self.window.title())
-        # Whichever chart is on top carries the day labels; the one below it
-        # is either hidden or has an axis of its own.
+        # The two stacked charts share an x-axis, so exactly one of them may
+        # carry the day labels: whichever one is lower on screen.
+        labelled = self._lowest_stacked()
         if self.bars.visible:
-            promoted = kind == BUCKET or (kind is None
-                                          and self.window.mode == "day")
             self.bars.draw(days, data, self.ledger, self.sel, roomy,
-                           day_labels=promoted)
+                           day_labels=labelled is self.bars)
         if self.strip.visible:
             self.strip.draw(days, gdata, self.ledger, self.sel, roomy,
-                            day_labels=kind != BUCKET,
-                            promoted=not self.bars.visible)
+                            day_labels=labelled is self.strip)
         if self.timeline.visible:
             self.timeline.draw(days, self.ledger, self.sel, roomy)
         self.side.draw(days, data, gdata, self.ledger, self.sel,

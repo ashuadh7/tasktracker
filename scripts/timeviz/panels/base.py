@@ -88,6 +88,15 @@ class Panel:
         canvas.blit(self.ax.bbox)
 
 
+# How far below its axes a legend sits, in *figure* fraction. `bbox_to_anchor`
+# wants axes fractions, which mean a different gap in every slot -- and these
+# charts land in slots of very different heights depending on what's selected,
+# so the offset has to be worked out per draw rather than written down once.
+LEGEND_GAP = 0.0605        # clear of a row of day labels
+LEGEND_GAP_TIGHT = 0.0403  # ditto, in the short growth slot
+LEGEND_GAP_FLUSH = 0.0102  # nothing under the axes but the legend itself
+
+
 class StackedPanel(Panel):
     """A day per column, categories stacked up it.
 
@@ -120,6 +129,10 @@ class StackedPanel(Panel):
 
     def hit(self, event):
         return self.hits.find(event.xdata, event.ydata)
+
+    def legend_anchor(self, gap):
+        """`bbox_to_anchor` y putting a legend `gap` below this axes."""
+        return -gap / self.ax.get_position().height
 
     # -- draw --------------------------------------------------------------
 

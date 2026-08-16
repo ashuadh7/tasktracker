@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Time tracker visualizer.
 
-Stacked 24h bars, one per day, coloured by bucket, with the growth ledger
-drawn as a companion strip beneath them.
+A clock timeline on top -- one row per day, each block placed where it
+actually happened -- with the stacked 24h bars and the growth strip beneath
+it as the summary view.
 
     python viz.py              # opens on the current week
     python viz.py 2026-08-11   # opens on the week containing that date

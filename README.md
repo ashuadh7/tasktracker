@@ -31,13 +31,14 @@ python scripts/viz.py
 
 ## Reading the chart
 
-Unselected, both ledgers are on screen at once — the 24h bars above, the growth strip below. That comparison is the default question.
+**The clock timeline is always on screen, on top** — one row per day, every block placed where it actually happened. Time-of-day patterns (obligations clustering at 08:00 and again at 16:00–19:30) read in one glance here; a stacked bar can't show them at all, because it's cumulative and deliberately says nothing about *when*.
 
-**Click any segment** and the view changes to answer a narrower one:
+Beneath it, unselected, both ledgers are on screen at once — the 24h bars, then the growth strip. That comparison of *how much* is the second question, once *when* has been answered by the timeline above it.
+
+**Click any segment** — on the timeline, the bars, or the strip — and the view changes to answer a narrower one:
 
 - Everything else fades, in the chart *and* in the index at the same time, so one category reads straight across the week.
 - **The ledger you didn't click gets out of the way.** Click a bucket and the growth strip goes; click a growth category and the 24h bars go. It isn't answering the question any more.
-- **A timeline takes its place** — one row per day, the selection drawn where it actually sits on the clock. The stacked bar says *how much* and deliberately says nothing about *when*, because it's cumulative. This says when, and time-of-day patterns only surface when days are stacked vertically and you can run your eye down a column.
 - **The panel underneath lists the rows**: day, time of day, duration, project · activity, and the note in italic. Every row gets the same treatment however many there are — scroll the panel for the rest, and the header says where you are (`1–9 of 14`).
 
 Click it again, click a gap, or press Esc to clear.
@@ -45,6 +46,8 @@ Click it again, click a gap, or press Esc to clear.
 Rows with no start/end can't be placed on a clock, and guessing would be a fabrication — they're totalled at the right edge of their day instead (`2h00 untimed`).
 
 `python scripts/viz.py --select slack --png out.png` does all of it headlessly.
+
+This was one of two arrangements tried behind a toggle in issue #5 — bars-on-top with the timeline conjured only by a selection was the other. Both were used for real; this one won, and the toggle and the losing arrangement are gone.
 
 ## Files
 
