@@ -305,6 +305,10 @@ class Viz:
         # (key, bottom, top) in hours.
         self._bar_hits = {}
         self._strip_hits = {}
+        # Side index rows: list of (("bucket", name) | ("growth", name), low, high)
+        # in the side axes' own 0-1 fraction coordinates. Tier headings and the
+        # unlogged row are never appended, which is what keeps them inert.
+        self._side_hits = []
         # The detail list scrolls rather than changing shape when it is long.
         self._detail_offset = 0
         self._detail_total = 0
@@ -326,6 +330,7 @@ class Viz:
         self.fig.canvas.mpl_connect("key_press_event", self.on_key)
         self.fig.canvas.mpl_connect("button_press_event", self.on_click)
         self.fig.canvas.mpl_connect("scroll_event", self.on_scroll)
+        self.fig.canvas.mpl_connect("motion_notify_event", self.on_hover)
         self.draw()
 
     # -- range -------------------------------------------------------------
@@ -412,6 +417,8 @@ class Viz:
         elif event.inaxes is self.strip:
             hit = self._hit(self._strip_hits, event)
             new = ("growth", hit.split("|")[1]) if hit else None
+        elif event.inaxes is self.side:
+            new = self._side_hit(event)
         else:
             return
         self.sel = None if new == self.sel else new
@@ -426,6 +433,22 @@ class Viz:
             if low <= event.ydata < high:
                 return key
         return None
+
+    def _side_hit(self, event):
+        for key, low, high in self._side_hits:
+            if low <= event.ydata < high:
+                return key
+        return None
+
+    def on_hover(self, event):
+        """The side index doesn't look clickable otherwise -- a hand cursor
+        over a live row is the whole discoverability fix."""
+        from matplotlib.backend_tools import Cursors
+        cursor = Cursors.POINTER
+        if (event.inaxes is self.side and event.ydata is not None
+                and self._side_hit(event) is not None):
+            cursor = Cursors.HAND
+        self.fig.canvas.set_cursor(cursor)
 
     # -- selection helpers -------------------------------------------------
 
@@ -791,6 +814,7 @@ class Viz:
         ax.axis("off")
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
+        self._side_hits = []
 
         n = len(days)
         totals = {b: 0 for b in BUCKET_ORDER}
@@ -855,6 +879,7 @@ class Viz:
                     ha="right", fontfamily="monospace")
             ax.text(1, y - 0.027, f"{hm(mins / n_logged)}/day", fontsize=7.5,
                     color=MUTED if on else blend(MUTED, 0.55), ha="right")
+            self._side_hits.append((("bucket", bucket), y - 0.046, y))
             y -= 0.046
 
         if unlogged > 0:
@@ -935,6 +960,7 @@ class Viz:
                 ax.text(1, y - 0.009, hm(per_cat[cat]), fontsize=8.5,
                         color=INK_2 if on else blend(MUTED, 0.45),
                         ha="right", fontfamily="monospace")
+                self._side_hits.append((("growth", cat), y - 0.024, y))
                 y -= 0.024
 
     def draw_detail(self, days):
