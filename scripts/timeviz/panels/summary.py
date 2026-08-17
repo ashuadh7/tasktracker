@@ -48,7 +48,7 @@ class SummaryPanel(Panel):
 
         planned = ledger.planned(days, "targeted_work")
         actual = totals["targeted_work"]
-        picked = sel.bucket if sel else None
+        picked = sel.buckets if sel else set()
 
         y = 0.988
 
@@ -89,13 +89,14 @@ class SummaryPanel(Panel):
             mins = totals[bucket]
             if mins == 0:
                 continue
-            on = picked is None or bucket == picked
+            matches = bucket in picked
+            on = not picked or matches
             ax.add_patch(Rectangle(
                 (0, y - 0.012), 0.045, 0.012, clip_on=False,
-                color=shade_for(sel, BUCKET_COLOR[bucket], bucket == picked)))
+                color=shade_for(sel, BUCKET_COLOR[bucket], matches)))
             ax.text(0.075, y - 0.010, bucket.replace("_", " "), fontsize=9,
                     color=INK_2 if on else blend(MUTED, 0.45),
-                    fontweight="bold" if bucket == picked else "normal")
+                    fontweight="bold" if matches else "normal")
             ax.text(1, y - 0.010, hm(mins), fontsize=9,
                     color=INK if on else blend(MUTED, 0.45),
                     ha="right", fontfamily="monospace")
@@ -112,7 +113,7 @@ class SummaryPanel(Panel):
         # Never registered as a hit -- absent data isn't a category you can
         # select, which is what keeps this row inert while it still shows.
         if unlogged > 0:
-            on = picked is None
+            on = not picked
             ax.add_patch(Rectangle((0, y - 0.012), 0.045, 0.012,
                                    clip_on=False,
                                    color=shade_for(sel, UNLOGGED_COLOR, False)))
@@ -127,7 +128,7 @@ class SummaryPanel(Panel):
 
     def _draw_growth(self, ax, days, gdata, ledger, sel, y):
         window = ledger.growth_in(days)
-        picked = sel.category if sel else None
+        picked = sel.categories if sel else set()
 
         # The heading sits on the rule rather than below it -- the growth half
         # is a continuation of the same column, not a second panel.
@@ -177,13 +178,14 @@ class SummaryPanel(Panel):
             for cat, _ in cats:
                 if per_cat[cat] == 0:
                     continue
-                on = picked is None or cat == picked
+                matches = cat in picked
+                on = not picked or matches
                 ax.add_patch(Rectangle(
                     (0.075, y - 0.010), 0.04, 0.010, clip_on=False,
-                    color=shade_for(sel, CATEGORY_COLOR[cat], cat == picked)))
+                    color=shade_for(sel, CATEGORY_COLOR[cat], matches)))
                 ax.text(0.145, y - 0.009, cat, fontsize=8.5,
                         color=INK_2 if on else blend(MUTED, 0.45),
-                        fontweight="bold" if cat == picked else "normal")
+                        fontweight="bold" if matches else "normal")
                 ax.text(1, y - 0.009, hm(per_cat[cat]), fontsize=8.5,
                         color=INK_2 if on else blend(MUTED, 0.45),
                         ha="right", fontfamily="monospace")

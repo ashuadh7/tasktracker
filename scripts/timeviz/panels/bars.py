@@ -23,13 +23,14 @@ class BarsPanel(StackedPanel):
         ax = self.ax
         self.begin(days, roomy)
         rows_by_slot = ledger.rows_by_slot(days)
-        picked = sel.bucket if sel else None
+        picked = sel.buckets if sel else set()
 
         def stack(key, vals, color, label_ink=None):
             bucket = SLOT_BUCKET.get(key, key)
-            fill = shade_for(sel, color, bucket == picked)
+            matches = bucket in picked
+            fill = shade_for(sel, color, matches)
             ink = label_ink or ink_on(fill)
-            if sel is not None and bucket != picked:
+            if sel is not None and not matches:
                 ink = blend(MUTED, 0.35)
             self.stack(key, vals, fill, ink, rows_by_slot, ledger.log)
 
@@ -58,7 +59,7 @@ class BarsPanel(StackedPanel):
         handles = []
         for b in BUCKET_ORDER:
             handles.append(Patch(
-                facecolor=shade_for(sel, BUCKET_COLOR[b], b == picked),
+                facecolor=shade_for(sel, BUCKET_COLOR[b], b in picked),
                 label=b.replace("_", " ")))
         handles.append(Patch(
             facecolor=shade_for(sel, UNLOGGED_COLOR, False), label="unlogged"))

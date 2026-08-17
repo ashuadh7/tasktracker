@@ -130,26 +130,30 @@ class Viz:
         (bars, strip, timeline) also scrolls the detail list to that row and
         highlights it -- clicking a *different* row switches the highlight
         even when it is the same bucket, and only clicking the same row
-        twice clears."""
+        twice clears.
+
+        Shift-click adds or removes one name from the selection instead of
+        replacing it -- see `Selection.toggled`."""
         if event.xdata is None or event.ydata is None:
             return
+        shift = event.key == "shift"
         if event.inaxes is self.bars.ax:
             band = self.bars.hit(event)
             key = band.key if band else None
             new = (Selection(BUCKET, SLOT_BUCKET[key])
                    if key and key != "unlogged" else None)
-            self._apply_click(new, band.row_id if band else None)
+            self._apply_click(new, band.row_id if band else None, shift)
         elif event.inaxes is self.strip.ax:
             band = self.strip.hit(event)
             new = Selection(GROWTH, band.key.split("|")[1]) if band else None
-            self._apply_click(new, band.row_id if band else None)
+            self._apply_click(new, band.row_id if band else None, shift)
         elif event.inaxes is self.timeline.ax:
             band = self.timeline.hit(event)
             self._apply_click(self._from_timeline(band),
-                              band.row_id if band else None)
+                              band.row_id if band else None, shift)
         elif event.inaxes is self.side.ax:
             band = self.side.hit(event)
-            self._apply_click(band.key if band else None, None)
+            self._apply_click(band.key if band else None, None, shift)
 
     def _from_timeline(self, band):
         """What a click on the timeline selects.
@@ -169,17 +173,30 @@ class Viz:
         self.detail.selected_row = None
         self.detail.offset = 0
 
-    def _apply_click(self, new_sel, row_id):
+    def _apply_click(self, new_sel, row_id, shift=False):
+        if shift and new_sel is not None:
+            self._select(new_sel if self.sel is None
+                        else self.sel.toggled(new_sel.kind, new_sel.names[0]),
+                        row_id)
+            self.draw()
+            return
+
         same_row = row_id is not None and row_id == self.detail.selected_row
         same_no_row = row_id is None and new_sel == self.sel
         if new_sel is None or same_row or same_no_row:
             self.clear()
         else:
-            self.sel = new_sel
-            self.detail.selected_row = row_id
-            self.detail.scroll_to_selected(self.ledger, self.sel,
-                                           self.window.days())
+            self._select(new_sel, row_id)
         self.draw()
+
+    def _select(self, sel, row_id):
+        if sel is None:
+            self.clear()
+            return
+        self.sel = sel
+        self.detail.selected_row = row_id
+        self.detail.scroll_to_selected(self.ledger, self.sel,
+                                       self.window.days())
 
     # -- hover -------------------------------------------------------------
 
