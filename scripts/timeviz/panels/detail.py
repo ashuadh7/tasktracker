@@ -12,7 +12,7 @@ activity, notes, one line each.
 from matplotlib.patches import Rectangle
 
 from ..formats import hm, row_label, truncate
-from ..theme import INK, INK_2, MUTED, blend
+from ..theme import BUCKET_COLOR, CATEGORY_COLOR, INK, INK_2, MUTED, blend
 from .base import Panel
 
 
@@ -71,12 +71,19 @@ class DetailPanel(Panel):
 
         growth = not sel.is_bucket
         frame = sel.rows(ledger, days)
-        color, heading = sel.color, sel.heading
+        heading = sel.heading
+        colors = [BUCKET_COLOR[n] if sel.is_bucket else CATEGORY_COLOR[n]
+                  for n in sel.names]
         total = int(frame["minutes"].sum()) if not frame.empty else 0
         n_days = frame["date"].nunique() if not frame.empty else 0
 
-        ax.add_patch(Rectangle((0, 0.915), 0.008, 0.062, color=color,
-                               clip_on=False))
+        # One name selected draws one accent bar; several draw one stripe
+        # each, stacked in the same space -- the heading reads as a
+        # combination, not a single colour standing in for two things.
+        swatch_h = 0.062 / len(colors)
+        for i, c in enumerate(colors):
+            ax.add_patch(Rectangle((0, 0.915 + i * swatch_h), 0.008, swatch_h,
+                                   color=c, clip_on=False))
         ax.text(0.018, 0.920, heading, fontsize=9, color=INK,
                 fontweight="bold")
         ax.text(max(0.15, 0.045 + len(heading) * 0.0092), 0.920,
@@ -102,9 +109,13 @@ class DetailPanel(Panel):
             if y - need < -0.04:
                 break
             if row_id == self.selected_row:
-                # The row a click resolved to -- behind the text, not on top.
+                # The row a click resolved to -- behind the text, not on
+                # top. Its own bucket/category colour, not the selection's:
+                # with several names selected they don't share one colour.
+                row_color = (BUCKET_COLOR[row["bucket"]] if sel.is_bucket
+                            else CATEGORY_COLOR[row["category"]])
                 ax.add_patch(Rectangle(
-                    (0, y - need + 0.018), 1, need, color=blend(color, 0.85),
+                    (0, y - need + 0.018), 1, need, color=blend(row_color, 0.85),
                     zorder=0, clip_on=False))
             when = (f"{row['start']}–{row['end']}"
                     if row["start"] and row["end"] else "—")

@@ -28,7 +28,7 @@ class StripPanel(StackedPanel):
         ax = self.ax
         self.begin(days, roomy)
         rows_by_key = ledger.rows_by_key(days)
-        picked = sel.category if sel else None
+        picked = sel.categories if sel else set()
 
         for key in GROWTH_KEYS:
             vals = [gdata.at[pd.Timestamp(d), key] / 60 for d in days]
@@ -36,7 +36,7 @@ class StripPanel(StackedPanel):
                 continue
             category = key.split("|")[1]
             concurrent = key.endswith("|concurrent")
-            fill = shade_for(sel, GROWTH_COLOR[key], category == picked)
+            fill = shade_for(sel, GROWTH_COLOR[key], category in picked)
             self.stack(key, vals, fill, ink_on(fill), rows_by_key,
                        ledger.growth, hatch="////" if concurrent else None)
 
@@ -57,7 +57,7 @@ class StripPanel(StackedPanel):
                    if any(gdata[f"{CATEGORY_TIER[c]}|{c}|{m}"].sum()
                           for m in GROWTH_MODES)]
         handles = [Patch(facecolor=shade_for(sel, CATEGORY_COLOR[c],
-                                             c == picked), label=c)
+                                             c in picked), label=c)
                    for c in present]
         if handles:
             handles.append(Patch(facecolor=SURFACE, edgecolor=MUTED,

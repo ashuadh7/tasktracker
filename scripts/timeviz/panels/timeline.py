@@ -10,8 +10,8 @@ import pandas as pd
 
 from ..formats import ampm, hm, to_hours
 from ..hits import LaneHits
-from ..theme import (BASELINE, BUCKET_COLOR, GRID, INK_2, MUTED, SURFACE,
-                     blend, ink_on)
+from ..theme import (BASELINE, BUCKET_COLOR, CATEGORY_COLOR, GRID, INK_2,
+                     MUTED, SURFACE, blend, ink_on)
 from .base import Panel
 
 
@@ -47,17 +47,17 @@ class TimelinePanel(Panel):
         if sel:
             frame = sel.rows(ledger, days)
             source = sel.source
-            const_color = sel.color
-            def color_of(row):
-                return const_color
         else:
-            # Day mode with nothing selected: every block for the one day,
-            # each in its own bucket colour -- there's no selection to
-            # narrow it to, and no need for one at n=1.
+            # Day mode with nothing selected: every block for the one day.
             frame = ledger.log_in(days)
             source = "log"
-            def color_of(row):
-                return BUCKET_COLOR[row["bucket"]]
+
+        # Each block in its own bucket/category colour, always -- a
+        # multi-name selection (work + targeted_work) needs to stay
+        # distinguishable, and at n=1 there's no selection to narrow to.
+        def color_of(row):
+            return (BUCKET_COLOR[row["bucket"]] if source == "log"
+                    else CATEGORY_COLOR[row["category"]])
 
         n = len(days)
         self.hits.reset(n)
