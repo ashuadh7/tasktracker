@@ -22,7 +22,7 @@ from matplotlib.widgets import Button
 from .formats import tooltip_text
 from .panels import (BarsPanel, DetailPanel, StripPanel, SummaryPanel,
                      TimelinePanel)
-from .selection import BUCKET, GROWTH, Selection
+from .selection import BUCKET, GROWTH, TARGET, Selection
 from .theme import INK, INK_2, SLOT_BUCKET, SURFACE, day_tag_colors
 from .window import Window
 
@@ -40,11 +40,6 @@ class Viz:
         self.ledger = ledger
         self.window = Window(anchor, mode)
         self.sel = Selection.parse(select) if select else None
-        # (project, target) of the completion segment last clicked, or None.
-        # Lives beside `sel` rather than inside it -- a target isn't a
-        # ledger row and doesn't hide either chart, it only expands its own
-        # line in the side index (see SummaryPanel._draw_completion / #29).
-        self.target_sel = None
         # Optional, schema-external: date -> tag, from --day-tags. Colours
         # are assigned on load since the tracker never knows the vocabulary
         # ahead of time.
@@ -123,7 +118,7 @@ class Viz:
             self.day()
         elif event.key == "t":
             self.today()
-        elif event.key == "escape" and (self.sel or self.target_sel):
+        elif event.key == "escape" and self.sel:
             self.clear()
             self.draw()
 
@@ -164,9 +159,8 @@ class Viz:
         elif event.inaxes is self.side.ax:
             idx = self.side.completion_at(event)
             if idx is not None:
-                key = self.side.target_key(idx)
-                self.target_sel = None if key == self.target_sel else key
-                self.draw()
+                _, name = self.side.target_key(idx)
+                self._apply_click(Selection(TARGET, name), None, shift)
                 return
             band = self.side.hit(event)
             self._apply_click(band.key if band else None, None, shift)
@@ -186,7 +180,6 @@ class Viz:
 
     def clear(self):
         self.sel = None
-        self.target_sel = None
         self.detail.selected_row = None
         self.detail.offset = 0
 
@@ -299,7 +292,9 @@ class Viz:
             self.strip.hide()
             self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.185])
         else:
-            top, hidden = ((self.bars, self.strip) if kind == BUCKET
+            # A target selection is log-sourced (see selection.py), so it
+            # gets the same top slot a bucket selection would.
+            top, hidden = ((self.bars, self.strip) if kind in (BUCKET, TARGET)
                            else (self.strip, self.bars))
             top.place([MAIN_L, 0.345, MAIN_W, 0.195])
             hidden.hide()
@@ -343,6 +338,6 @@ class Viz:
                                day_tags=self.day_tags,
                                day_tag_colors=self.day_tag_colors)
         self.side.draw(days, data, gdata, self.ledger, self.sel,
-                       self.window.mode, self.target_sel)
+                       self.window.mode)
         self.detail.draw(days, self.ledger, self.sel)
         self.fig.canvas.draw_idle()

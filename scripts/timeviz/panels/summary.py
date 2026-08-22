@@ -12,7 +12,7 @@ from matplotlib.patches import Rectangle
 
 from ..formats import MINUTES_PER_DAY, clock_hm, hm, truncate, wrap
 from ..hits import BandHits
-from ..selection import BUCKET, GROWTH, Selection, shade_for
+from ..selection import BUCKET, GROWTH, TARGET, Selection, shade_for
 from ..theme import (BUCKET_COLOR, BUCKET_ORDER, CATEGORY_COLOR, GRID,
                      GROWTH_KEYS, GROWTH_MODES, INK, INK_2, MUTED, SLOTS,
                      SLOT_BUCKET, TIERS, UNLOGGED_COLOR, blend, target_hue,
@@ -70,7 +70,7 @@ class SummaryPanel(Panel):
         hit = self._completion_hits[i]
         return hit.project, hit.name
 
-    def draw(self, days, data, gdata, ledger, sel, mode, target_sel=None):
+    def draw(self, days, data, gdata, ledger, sel, mode):
         ax = self.ax
         ax.clear()
         ax.axis("off")
@@ -94,7 +94,7 @@ class SummaryPanel(Panel):
         picked = sel.buckets if sel else set()
 
         y = 0.988
-        y = self._draw_completion(ax, ledger, y, target_sel)
+        y = self._draw_completion(ax, ledger, y, sel)
 
         if mode == "day":
             # n=1 breaks both halves of the usual line: "1 OF 1 DAYS LOGGED"
@@ -156,7 +156,7 @@ class SummaryPanel(Panel):
         self._draw_growth(ax, days, gdata, ledger, sel, y)
         self.tooltip_artist()
 
-    def _draw_completion(self, ax, ledger, y, target_sel=None):
+    def _draw_completion(self, ax, ledger, y, sel):
         """Percent-complete per project, rolled up from targets.csv +
         progress-log.csv -- see model.py's `target_progress`.
 
@@ -165,14 +165,14 @@ class SummaryPanel(Panel):
         broken into one segment per target, sized by its hour estimate and
         coloured by `theme.target_hue` -- an ordinal ramp keyed to planning
         order (see that function's docstring). Hoverable for the per-target
-        breakdown; clicking a segment sets `target_sel` (owned by Viz, not
-        this panel) to that target, and a matching segment gets the window
-        it was planned for plus the minutes actually tagged to it (see
-        `Ledger.target_minutes` -- exact, via the `target` column on
-        time-log.csv, not a project-wide guess) drawn beneath the bar -- see
-        issue #29. Two facts side by side, deliberately never a rate:
-        minutes-per-percent-point is exactly the correlation the progress
-        ledger (#19) rejected.
+        breakdown; clicking a segment turns it into a real `Selection(TARGET,
+        ...)` (see selection.py) -- the same one bucket/growth clicks
+        produce, so the timeline and bars highlight it and the detail panel
+        lists its rows exactly like any other selection. This panel's own
+        addition is the matching segment's window and total-ever tagged
+        minutes, drawn beneath its bar -- see issue #29. Two facts side by
+        side, deliberately never a rate: minutes-per-percent-point is
+        exactly the correlation the progress ledger (#19) rejected.
         """
         self._completion_hits = []
         progress = ledger.target_progress()
@@ -222,7 +222,7 @@ class SummaryPanel(Panel):
                     seg_x0, seg_x0 + seg_w, bar_bot, bar_top,
                     f"{wrap(name)} ({hm(mins) or '0h00'})\n{tpct}% done",
                     project, name, window))
-                if target_sel == (project, name):
+                if sel is not None and sel.kind == TARGET and sel.names[0] == name:
                     matched = (name, tpct, window)
             y = bar_bot - 0.016
 

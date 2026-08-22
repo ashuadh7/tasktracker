@@ -12,6 +12,7 @@ activity, notes, one line each.
 from matplotlib.patches import Rectangle
 
 from ..formats import hm, row_label, truncate
+from ..selection import TARGET
 from ..theme import BUCKET_COLOR, CATEGORY_COLOR, INK, INK_2, MUTED, blend
 from .base import Panel
 
@@ -69,11 +70,10 @@ class DetailPanel(Panel):
                     fontsize=8.5, color=blend(MUTED, 0.25))
             return
 
-        growth = not sel.is_bucket
+        growth = sel.is_growth
         frame = sel.rows(ledger, days)
         heading = sel.heading
-        colors = [BUCKET_COLOR[n] if sel.is_bucket else CATEGORY_COLOR[n]
-                  for n in sel.names]
+        colors = [sel.color_for(n) for n in sel.names]
         total = int(frame["minutes"].sum()) if not frame.empty else 0
         n_days = frame["date"].nunique() if not frame.empty else 0
 
@@ -90,6 +90,20 @@ class DetailPanel(Panel):
                 f"{hm(total) or '0h00'} across {n_days} day"
                 f"{'' if n_days == 1 else 's'}",
                 fontsize=8.5, color=MUTED)
+
+        if sel.kind == TARGET:
+            # The row list below is windowed to whatever's on screen, same as
+            # any other selection -- this is the one line that isn't: the
+            # window a target was actually planned for, and how much has
+            # ever been tagged to it, on both sides of the window's edges.
+            trow = ledger.targets[ledger.targets["target"] == sel.names[0]]
+            window = trow.iloc[0]["window"] if not trow.empty else ""
+            planned = f"planned for {window}" if window else "no window set"
+            total_ever = ledger.target_minutes(sel.names[0])
+            ax.text(0, 0.865,
+                    f"{planned}  ·  {hm(total_ever) or '0h00'} logged "
+                    f"toward it in total",
+                    fontsize=8.5, color=MUTED)
 
         if frame.empty:
             ax.text(0, 0.78, "nothing in this range", fontsize=9, color=MUTED)
@@ -112,8 +126,11 @@ class DetailPanel(Panel):
                 # The row a click resolved to -- behind the text, not on
                 # top. Its own bucket/category colour, not the selection's:
                 # with several names selected they don't share one colour.
-                row_color = (BUCKET_COLOR[row["bucket"]] if sel.is_bucket
-                            else CATEGORY_COLOR[row["category"]])
+                # A target selection's rows are log rows, so they're coloured
+                # by bucket too -- always `targeted_work`, since that's the
+                # only bucket a target can be logged under.
+                row_color = (CATEGORY_COLOR[row["category"]] if sel.is_growth
+                            else BUCKET_COLOR[row["bucket"]])
                 ax.add_patch(Rectangle(
                     (0, y - need + 0.018), 1, need, color=blend(row_color, 0.85),
                     zorder=0, clip_on=False))
