@@ -56,6 +56,18 @@ def read_log(path):
     return frame
 
 
+def read_day_tags(path):
+    """date -> tag, from an optional two-column `date,tag` CSV that lives
+    outside the tracker's own schema entirely -- see --day-tags in cli.py.
+    A missing path (the common case: nobody passed the flag) reads as no
+    tags at all, the same way OPEN_FILE/GROWTH_FILE degrade when absent."""
+    if not path:
+        return {}
+    _, rows = csv_io.read_rows(path)
+    return {pd.Timestamp(row["date"]).date(): row["tag"]
+            for row in rows if row.get("tag")}
+
+
 def row_order(frame, days, column_field):
     """day index -> column value -> ordered list of row ids (frame index),
     in the same order the detail list shows them (`["date", "start"]`). This

@@ -47,6 +47,15 @@ Rows with no start/end can't be placed on a clock, and guessing would be a fabri
 
 `python scripts/viz.py --select slack --png out.png` does all of it headlessly.
 
+**`--day-tags path/to/file.csv`** tints the timeline's per-day row by an
+arbitrary category from a `date,tag` CSV that lives entirely outside this
+repo's own schema — the tracker only ever sees a date and a string, never
+what the tag means. A day with no matching row falls back to the ordinary
+zebra stripe. This is for whatever varies day-to-day and isn't itself an
+activity: which days follow one schedule versus another, a recurring
+external constraint, anything you'd otherwise have to remember by looking
+elsewhere.
+
 This was one of two arrangements tried behind a toggle in issue #5 — bars-on-top with the timeline conjured only by a selection was the other. Both were used for real; this one won, and the toggle and the losing arrangement are gone.
 
 ## Files
