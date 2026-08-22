@@ -8,7 +8,7 @@ this an index rather than a readout.
 
 from matplotlib.patches import Rectangle
 
-from ..formats import MINUTES_PER_DAY, clock_hm, hm
+from ..formats import MINUTES_PER_DAY, clock_hm, hm, wrap
 from ..hits import BandHits
 from ..selection import BUCKET, GROWTH, Selection, shade_for
 from ..theme import (BUCKET_COLOR, BUCKET_ORDER, CATEGORY_COLOR, GRID,
@@ -189,7 +189,7 @@ class SummaryPanel(Panel):
                                        clip_on=False, color=muted))
                 self._completion_hits.append((
                     seg_x0, seg_x0 + seg_w, bar_bot, bar_top,
-                    f"{name} ({hm(mins) or '0h00'})\n{tpct}% done"))
+                    f"{wrap(name)} ({hm(mins) or '0h00'})\n{tpct}% done"))
             y = bar_bot - 0.016
 
         y -= 0.014
