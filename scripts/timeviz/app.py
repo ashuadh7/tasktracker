@@ -40,6 +40,11 @@ class Viz:
         self.ledger = ledger
         self.window = Window(anchor, mode)
         self.sel = Selection.parse(select) if select else None
+        # (project, target) of the completion segment last clicked, or None.
+        # Lives beside `sel` rather than inside it -- a target isn't a
+        # ledger row and doesn't hide either chart, it only expands its own
+        # line in the side index (see SummaryPanel._draw_completion / #29).
+        self.target_sel = None
         # Optional, schema-external: date -> tag, from --day-tags. Colours
         # are assigned on load since the tracker never knows the vocabulary
         # ahead of time.
@@ -118,7 +123,7 @@ class Viz:
             self.day()
         elif event.key == "t":
             self.today()
-        elif event.key == "escape" and self.sel:
+        elif event.key == "escape" and (self.sel or self.target_sel):
             self.clear()
             self.draw()
 
@@ -157,6 +162,12 @@ class Viz:
             self._apply_click(self._from_timeline(band),
                               band.row_id if band else None, shift)
         elif event.inaxes is self.side.ax:
+            idx = self.side.completion_at(event)
+            if idx is not None:
+                key = self.side.target_key(idx)
+                self.target_sel = None if key == self.target_sel else key
+                self.draw()
+                return
             band = self.side.hit(event)
             self._apply_click(band.key if band else None, None, shift)
 
@@ -175,6 +186,7 @@ class Viz:
 
     def clear(self):
         self.sel = None
+        self.target_sel = None
         self.detail.selected_row = None
         self.detail.offset = 0
 
@@ -211,7 +223,8 @@ class Viz:
         from matplotlib.backend_tools import Cursors
         cursor = Cursors.POINTER
         if (event.inaxes is self.side.ax and event.ydata is not None
-                and self.side.hit(event) is not None):
+                and (self.side.hit(event) is not None
+                     or self.side.completion_at(event) is not None)):
             cursor = Cursors.HAND
         self.fig.canvas.set_cursor(cursor)
         self._update_hover(event)
@@ -330,6 +343,6 @@ class Viz:
                                day_tags=self.day_tags,
                                day_tag_colors=self.day_tag_colors)
         self.side.draw(days, data, gdata, self.ledger, self.sel,
-                       self.window.mode)
+                       self.window.mode, self.target_sel)
         self.detail.draw(days, self.ledger, self.sel)
         self.fig.canvas.draw_idle()

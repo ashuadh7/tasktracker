@@ -6,6 +6,8 @@ than visible -- which slot a sleep row belongs in, whether a day's minutes add
 to 1440 -- can be exercised without opening a window.
 """
 
+import datetime as dt
+import re
 import sys
 from pathlib import Path
 
@@ -27,6 +29,48 @@ TARGETS_FILE = DATA / "targets.csv"
 PROGRESS_FILE = DATA / "progress-log.csv"
 
 MIDNIGHT = {"00:00", "24:00"}
+
+_MONTHS = {name: i for i, name in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun",
+     "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
+_WINDOW_RE = re.compile(
+    r"([A-Za-z]{3,})\s+(\d{1,2})\s*-\s*(?:([A-Za-z]{3,})\s+)?(\d{1,2})$")
+
+
+def parse_window(window, today=None):
+    """"Aug 15-21" or "Aug 29-Sep 4" -> (start, end) dates, for issue #29's
+    loose match. The field never carries a year, so one is inferred from
+    proximity to `today`; None for anything that doesn't match this shape --
+    `window` is free text (see targets.csv's header), and guessing wrong is
+    worse than admitting it can't be read.
+    """
+    if not window:
+        return None
+    m = _WINDOW_RE.match(window.strip())
+    if not m:
+        return None
+    mon1, d1, mon2, d2 = m.groups()
+    mon1 = _MONTHS.get(mon1[:3].lower())
+    mon2 = _MONTHS.get(mon2[:3].lower()) if mon2 else mon1
+    if not mon1 or not mon2:
+        return None
+    today = today or dt.date.today()
+    year = today.year
+    try:
+        start = dt.date(year, mon1, int(d1))
+        end = dt.date(year if mon2 >= mon1 else year + 1, mon2, int(d2))
+    except ValueError:
+        return None
+    # A window is only ever a few weeks wide, so if the nearest-year guess
+    # still lands months away from today, it's really the year on the other
+    # side of new year's.
+    if (start - today).days > 200:
+        start, end = (start.replace(year=start.year - 1),
+                      end.replace(year=end.year - 1))
+    elif (today - end).days > 200:
+        start, end = (start.replace(year=start.year + 1),
+                      end.replace(year=end.year + 1))
+    return start, end
 
 
 def slot_of(row):
@@ -221,7 +265,8 @@ class Ledger:
         `items` keeps targets.csv's own row order per project -- the order
         the targets were listed when the goal was planned -- because that
         order is priority, not just display order (see theme.py's
-        `target_hue`).
+        `target_hue`). Each item also carries its `window` string, which is
+        otherwise unused here but is what issue #29's click-through needs.
         """
         if self.targets.empty:
             return {}
@@ -237,15 +282,36 @@ class Ledger:
         out = {}
         for project, group in active.groupby("project"):
             items = [(row["target"], int(row["minutes"]),
-                     int(latest.get(row["target"], 0)))
+                     int(latest.get(row["target"], 0)), row["window"])
                     for _, row in group.iterrows()]
-            weight = sum(m for _, m, _ in items)
+            weight = sum(m for _, m, _, _ in items)
             if weight == 0:
                 continue
-            weighted = sum(m * p for _, m, p in items)
+            weighted = sum(m * p for _, m, p, _ in items)
             out[project] = {"rollup": weighted / weight, "weight": weight,
                             "items": items}
         return out
+
+    def target_minutes(self, project, window):
+        """Minutes logged toward `project` within `window`'s date span --
+        the loose match issue #29 settled on. No column in time-log.csv
+        links a row to a specific target, so this sums every row for the
+        whole project across the window rather than just the rows that
+        actually served this one -- approximate on purpose, and meant to be
+        shown only paired with the window string, never alone, so it never
+        reads as more precise than it is.
+
+        None if `window` doesn't parse into real dates (see `parse_window`)
+        -- a click can't show a number it can't actually derive.
+        """
+        span = parse_window(window)
+        if span is None:
+            return None
+        start, end = span
+        stamps = pd.date_range(start, end)
+        return int(self.log[
+            (self.log["project"] == project) & self.log["date"].isin(stamps)
+        ]["minutes"].sum())
 
     def growth_in(self, days):
         if self.growth.empty:
