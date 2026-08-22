@@ -70,6 +70,13 @@ class Panel:
         self.bg = (self.fig.canvas.copy_from_bbox(self.ax.bbox)
                    if self.visible else None)
 
+    # How much room a tooltip needs to its side before flipping, in points.
+    # Generous on purpose -- a target name plus its note can run long, and
+    # guessing too small is what let this bug through in the first place:
+    # the box doesn't wrap or shrink, it just draws off the canvas edge and
+    # vanishes, so the margin has to cover the box, not the average case.
+    TOOLTIP_MARGIN = 260
+
     def paint(self, text, event):
         """Repaint just this axes: the cached background, plus the tooltip if
         there is one. Routing hover through a full redraw would rebuild five
@@ -79,6 +86,14 @@ class Panel:
         canvas = self.fig.canvas
         canvas.restore_region(self.bg)
         if text is not None:
+            # The box always grows away from `xy`, never wraps or shrinks --
+            # near the figure's right edge, growing rightward (the default)
+            # draws most of it off-canvas, where it's simply not there to
+            # see. Flip to grow leftward instead once there isn't room.
+            fig_w = self.fig.bbox.width
+            near_right = event.x is not None and fig_w - event.x < self.TOOLTIP_MARGIN
+            self.tooltip.set_ha("right" if near_right else "left")
+            self.tooltip.xyann = (-14, 14) if near_right else (14, 14)
             self.tooltip.xy = (event.xdata, event.ydata)
             self.tooltip.set_text(text)
             self.tooltip.set_visible(True)
