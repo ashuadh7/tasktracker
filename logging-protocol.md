@@ -72,6 +72,7 @@ Rules for step 2:
 - **Auto-fill the standing baseline** (below) rather than asking. He should only have to mention what was *different*.
 - **Ask about anomalies, not routine.** "Did you shower?" is noise. "You got home at 7:30 — did the evening with your wife still happen, or did that get eaten?" is signal.
 - **Batch the questions.** All of them in one pass, not one at a time.
+- **Keep `activity` short; put the elaboration in `notes`.** Ashu talks in full sentences — "continued working through the formative study analysis, focusing on the last participant's transcript" — but the row's `activity` should distill that to a label: `formative study analysis`, with the rest in `notes`. This isn't just tidiness: the visualizer's hover tooltip shows `activity` as the headline and wraps `notes` underneath it, so a long `activity` fighting a long `notes` for the same short line is exactly what made tooltips overrun and overlap in practice (see the wrap fix in the repo history). When reflecting a row back in step 2, split it this way rather than dumping the whole sentence into `activity`.
 
 ## The standing baseline — fill it in, don't ask
 

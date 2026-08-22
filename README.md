@@ -103,9 +103,9 @@ date,start,end,minutes,bucket,domain,project,activity,confidence,notes
 - **bucket** — the analysis axis. **Fixed vocabulary, never extend casually** (see below).
 - **domain** — `research` / `teaching` / `personal` / `health` / `admin`. Blank for sleep, necessities, slack.
 - **project** — free string, validated against `projects.csv`. Blank when not project-work.
-- **activity** — what you actually did.
+- **activity** — what you actually did, **short — a label, not a sentence**. `formative study analysis`, not `continued working through the formative study analysis, focusing on P07's transcript`. The elaboration belongs in `notes`; see there for why this split matters more than it looks.
 - **confidence** — `logged` (recorded same day) or `reconstructed` (rebuilt after the fact). Aug 11–14 2026 is all `reconstructed` and should not be trusted at the same precision as later weeks.
-- **notes** — free text. Quote the field if it contains a comma.
+- **notes** — free text, the detail `activity` deliberately leaves out. Quote the field if it contains a comma. **This split is what makes the visualizer's hover tooltip readable**: it shows `activity` as the headline and `notes` wrapped underneath, so a long `activity` and a long `notes` both fighting for the same short line is what used to make tooltips overrun and overlap the panel next to them (see `logging-protocol.md`). Keeping `activity` to a few words isn't just tidiness — it's the label a tooltip, the detail list, and a three-years-later skim all read first.
 
 ## The bucket vocabulary — this is the part that must not drift
 
