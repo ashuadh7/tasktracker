@@ -67,8 +67,29 @@ This was one of two arrangements tried behind a toggle in issue #5 — bars-on-t
 | `growth-log.csv` | The growth ledger — an overlay on the same minutes. Never reconciled to 24h. |
 | `plan.csv` | What was allocated ahead of time. Written when a week is planned. |
 | `projects.csv` | Lookup for the project column. The only file that changes when your work changes. |
+| `targets.csv` | Lookup for planned work items — one row per item, with its hour estimate. |
+| `progress-log.csv` | The progress ledger — a percent-complete trail per target. Append-only. |
 
 Plan vs. actual is a join on `date` + `project`. Keeping them in separate files means the plan stays frozen as written — you can see what you *believed* on Sunday, not a version edited to match reality.
+
+## The progress ledger
+
+`time-log.csv` says where the minutes went. `progress-log.csv` says how much of the planned work is actually done — a different question the minutes can't answer, since hours spent and progress made aren't linear. Two items can eat the same hours and land at very different completion states, so this ledger deliberately carries no time correlation: no rate, no minutes-per-point, nothing that implies progress should track hours logged.
+
+```
+targets.csv       target,project,window,minutes,status,notes
+progress-log.csv  date,target,percent,basis,notes
+```
+
+**A target is a planned work item** — the grain a plan actually lists, one level above a day's scheduled block (`plan.csv`) and one level below a project. `minutes` is its hour estimate; `window` records which planning window it was first committed in, so a later retrospective can compare what was committed against what got finished. `status` is `active` / `done` / `dropped` — a target abandoned partway isn't the same as one still in flight at the same percent.
+
+**`progress-log.csv` is append-only**, dated by when the judgment was made, not when the work happened. The trail — `0 → 40 → 60` — is the point; a mutable percent field would keep today's number and throw the history away. A percent lower than the target's previous entry is allowed (re-scoping is real) but requires a `notes` explanation, so a backwards step reads as a deliberate correction rather than a silent contradiction.
+
+**A project's percent is never entered — it's computed**, hours-weighted across its targets: `sum(minutes × percent) / sum(minutes)`. Where a plan's own section header disagrees with the sum of its items' estimates, the items win.
+
+`basis` is optional — a short anchor for the number ("3 of 7 sections drafted") worth having in three years, but not required on every update. Requiring it is what would stop the updates from happening.
+
+Capture is conversational, not scheduled: a percent gets recorded whenever it's stated, the same opportunistic shape as the `#drift` note in `logging-protocol.md` — never a fixed sweep.
 
 ## time-log.csv columns
 

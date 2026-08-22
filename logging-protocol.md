@@ -20,21 +20,22 @@ The desktop is the authority. Notion never overrules it. The only thing Notion k
 
 **`Synced` means "the desktop has this row"** — it exists in `time-log.csv` or `open-day.csv`. Rows pushed from the desktop are born with it checked. Rows created on the phone start unchecked, and stay that way until the desktop ingests them.
 
-Sync runs at the start of a desktop session, and again after any day is touched:
+### Pushing to Notion happens with every write, not at session close
 
-```bash
-python scripts/sync_plan.py notion_rows.json
-python scripts/sync_plan.py --growth growth_rows.json
-```
+Not batched, not something Ashu has to ask for. Whenever a session with PC file access (Remote Control, or a chat session that happens to have file tools, like this one) appends to `open-day.csv`, seals a day into `time-log.csv`, or writes to `growth-log.csv`, the matching Notion row is created or updated **in the same step** — not deferred to the end of the conversation. "Logged" means "on the desktop *and* in Notion" the instant it lands, not eventually.
 
-Dump the Notion rows to JSON first, then run it. It prints four lists:
+This replaced an end-of-session batch-sync habit (via `scripts/sync_plan.py --since`) that had a failure mode: the whole point was to avoid the desktop and Notion drifting apart, but if the session ended, crashed, or moved on before the batch step ran, they drifted anyway — and on 2026-08-16 that's exactly what happened, two days of silence. Writing to both at the moment of logging removes the step that could get skipped.
 
-1. **pull** — phone rows the desktop has never seen. **Handle these first**, before anything else, or the next step will delete them.
-2. **create** — desktop rows missing from Notion.
-3. **delete** — Notion rows the desktop no longer has, from an open day that got rewritten.
+`scripts/sync_plan.py --since` still exists and is still useful — for reconciling drift after an Excel edit, a session that didn't have Notion tools, or any time drift is suspected. It's a repair tool now, not the default path.
+
+Dump the relevant Notion rows to JSON and run it. It prints four lists:
+
+1. **pull** — phone rows the desktop has never seen. This is the one thing that stays manual: Ashu fetches from Notion himself when he wants the desktop to ingest phone entries. A non-empty pull list is a prompt to ask him, never something to merge on its own — merging it first would make the next step's `create`/`delete` wrong anyway.
+2. **create** — desktop rows missing from Notion. Push these through the Notion connector.
+3. **delete** — Notion rows the desktop no longer has, from an open day that got rewritten. Notion has no page-delete tool available here, so in practice this means updating the stale page's properties to match rather than removing and recreating it.
 4. **reflag** — rows whose `sealed`/`Synced` flags disagree with the desktop.
 
-Diffing in a script rather than by eye is what keeps a log that runs for years from drifting a row at a time.
+Diffing in a script rather than by eye is what keeps a log that runs for years from drifting a row at a time. Run it with the full history (no `--since`) at the start of a fresh desktop session, or any time drift is suspected — the windowed form only stays accurate if every prior session actually pushed when it should have.
 
 ## Three files, one rule
 
@@ -114,6 +115,64 @@ Growth rows are written as they come up, not at sealing — they're already fina
 
 A day logged at 10am, 4pm, and then finished the following morning is a mix. Mark each row for when *it* was captured.
 
+## Tagging a distraction chain — the `#drift` note
+
+Some slack isn't just "did something else instead" — it's starting one specific task and never getting back to it because attention wandered mid-task, one thing pulling into another. That shape is worth telling apart from plain slack, because the pattern (which tasks get dropped, what pulls him away) is closer to the actual question this tracker exists to answer than the raw minutes are.
+
+When a note describes exactly that — an intended task that got derailed by something else, and the intended task never happened — prefix the `notes` field with `#drift:`, then the intended task, an arrow, then what actually consumed the time:
+
+```
+#drift: <what he meant to do> -> <what actually happened, in order>
+```
+
+Example (2026-08-17, 15:02–15:15, `slack`): `#drift: wife called asking him to file an insurance claim -> opened email looking for it, got pulled into an unrelated email, then checked the citizenship-tracker portal; claim never filed`
+
+It's plain text inside the existing `notes` field, not a new column — deliberately, since this is a lightweight version of parking-lot.md **#4** (log the trigger, not just the activity) and **#9** (typed detail per block), not a schema change. `grep '#drift' tracker/*.csv` (or the same pattern in Excel's find) surfaces every instance across the whole history. Building actual tooling around it — a report of which tasks get dropped most, what pulls him away most often — is a `parking-lot.md` idea, not something to build the moment the tag exists.
+
+### `#email-drift` — when the trigger is specifically an email
+
+A sub-case of `#drift`, worth its own tag because it recurs on its own: opening email to check one specific thing and coming out having read two more, minutes later than intended. Same note format, narrower trigger:
+
+```
+#email-drift: <what he opened the email to check> -> <what actually happened>
+```
+
+Example (2026-08-19, two back-to-back instances): checked email for TAship status (5m), then got pulled into an unrelated email about a CSGSA presidency offer (15m).
+
+`grep '#email-drift' tracker/*.csv` isolates these from the wider `#drift` set. parking-lot.md **#10** already flagged email as a suspected recurring trigger before this tag existed; this makes that hypothesis directly queryable instead of requiring a text search inside `#drift` notes. Doesn't replace `#drift` — a block can still just be `#drift` if the trigger wasn't email-shaped.
+
+## Unit counts on generalizable tasks — precision now, structure later
+
+Most of what gets logged doesn't transfer: one meeting's prep time says nothing about the next one. A small set of tasks are the exception — their *per-unit* rate is roughly stable across contexts, so "how long does one of these actually take me" is a question worth being able to answer from history, someday. That day isn't today: no new column, no new file, no extra logging step. What changes is precision inside the `notes` field on exactly this list, when one of these is what got logged:
+
+- reading one research paper
+- prepping one meal
+- cleaning the room
+- writing one paragraph/page of academic writing
+- qualitative-coding one hour of recording
+- grading one assignment
+- prepping for one meeting
+- prepping for one presentation
+
+(Open list — add to it as more generalizable ones surface. Don't add something whose rate wouldn't actually transfer.)
+
+When a logged block is one of these, get the count into the note, not just the duration — `read 3 papers` rather than `read papers`, `graded 5 assignments` rather than `graded for a while`. If Ashu logs one of these vaguely — a duration with no count — ask once for the count rather than letting it pass; don't turn every log into an interrogation over anything off this list.
+
+This is deliberately not a schema change. The point is that once enough precise entries accumulate in plain notes, a future session designing a feature around this has real instances to look at — grep-able the same way `#drift` is — and can decide then whether a structured field is actually earned. Deciding that now, with no data yet, would be guessing.
+
+## Capturing progress — conversational, not scheduled
+
+`progress-log.csv` (see `README.md`) tracks percent-complete per target, and it's captured the same way `#drift` is: whenever Ashu says it, not on a fixed cadence. No sweep through every open target at the start or end of a session — that's a ritual he never asked for and it's exactly the kind of friction that kills a habit.
+
+Two shapes this shows up in:
+
+- **Volunteered, mid-dump.** A logging session that includes "...and I got through about 60% of the formative study analysis" appends a `progress-log.csv` row for that target at that percent, right then — no different from any other fact in the dump.
+- **Asked for.** Ashu asking "where am I on X" is answered by reading the current trail back, not by prompting him to re-estimate everything open.
+
+**Never solicited on every `targeted_work` row.** A day full of project work doesn't mean a day full of percent updates — only write a row when Ashu actually states one.
+
+`basis` is optional. Ask for it if it's natural in the moment; a shrug is a fine answer, and forcing one on every update is what would stop the updates happening at all. A percent lower than the target's last entry does need a note explaining the re-scope — `check.py` enforces that one.
+
 ## When he genuinely can't remember
 
 Leave the day out of `time-log.csv` entirely. It renders as a grey unlogged bar, which is honest and shows up as a gap in logging discipline.
@@ -152,6 +211,7 @@ date,start,end,minutes,tier,category,mode,bucket,source,activity,confidence,note
 | `reading` | `fiction` · `non-fiction` · `article` |
 | `audio` | `podcast` · `audiobook` |
 | `self-care` | `self-improvement` · `hobby` · `physical` · `mental` |
+| `networking` | `networking` (single category for now — split later if instances show a real pattern, e.g. by relationship type) |
 
 - **`mode`** — `concurrent` if it rode along with something else (audiobook over the dishes), `dedicated` if it *was* the activity.
 - **`bucket`** — what the time log called that same block. `necessities`, `slack`, `work`, whatever it actually was.
