@@ -23,6 +23,8 @@ LOG_FILE = DATA / "time-log.csv"
 OPEN_FILE = DATA / "open-day.csv"
 PLAN_FILE = DATA / "plan.csv"
 GROWTH_FILE = DATA / "growth-log.csv"
+TARGETS_FILE = DATA / "targets.csv"
+PROGRESS_FILE = DATA / "progress-log.csv"
 
 MIDNIGHT = {"00:00", "24:00"}
 
@@ -111,8 +113,9 @@ class Ledger:
     would destroy the comparison the chart exists to make.
     """
 
-    def __init__(self, log, plan, growth):
+    def __init__(self, log, plan, growth, targets, progress):
         self.log, self.plan, self.growth = log, plan, growth
+        self.targets, self.progress = targets, progress
 
     @classmethod
     def load(cls):
@@ -155,7 +158,24 @@ class Ledger:
         else:
             growth = pd.DataFrame(columns=["date", "minutes", "tier", "category",
                                            "mode", "bucket", "key"])
-        return cls(log, plan, growth)
+
+        # No `date` column -- one row per planned work item, not a log entry --
+        # so it goes through csv_io directly rather than read_log.
+        fieldnames, rows = csv_io.read_rows(TARGETS_FILE)
+        targets = pd.DataFrame(rows, columns=fieldnames) if fieldnames else \
+            pd.DataFrame(columns=["target", "project", "window", "minutes",
+                                  "status", "notes"])
+        if not targets.empty:
+            targets["minutes"] = targets["minutes"].astype(int)
+
+        progress = read_log(PROGRESS_FILE)
+        if not progress.empty:
+            progress["percent"] = progress["percent"].astype(int)
+        else:
+            progress = pd.DataFrame(columns=["date", "target", "percent",
+                                             "basis", "notes"])
+
+        return cls(log, plan, growth, targets, progress)
 
     # -- reshaped for the charts -------------------------------------------
 
@@ -185,6 +205,37 @@ class Ledger:
             self.plan["date"].isin(pd.DatetimeIndex(days))
             & (self.plan["bucket"] == bucket)
         ]["minutes"].sum()
+
+    def target_progress(self):
+        """project -> (rollup percent, total minutes) across active targets.
+
+        Not scoped to a window -- a target lives across many days and its
+        percent is a current state, not a per-day quantity, so this always
+        reflects the open set regardless of what's on screen. The rollup is
+        hours-weighted: a target with no progress-log.csv entry yet counts as
+        0%, and a target with a 0-minute estimate drops out on its own (zero
+        weight contributes to neither side of the ratio).
+        """
+        if self.targets.empty:
+            return {}
+        active = self.targets[self.targets["status"] == "active"]
+        if active.empty:
+            return {}
+
+        latest = {}
+        if not self.progress.empty:
+            last = self.progress.drop_duplicates("target", keep="last")
+            latest = dict(zip(last["target"], last["percent"]))
+
+        out = {}
+        for project, group in active.groupby("project"):
+            weight = int(group["minutes"].sum())
+            if weight == 0:
+                continue
+            weighted = sum(latest.get(t, 0) * m
+                          for t, m in zip(group["target"], group["minutes"]))
+            out[project] = (weighted / weight, weight)
+        return out
 
     def growth_in(self, days):
         if self.growth.empty:

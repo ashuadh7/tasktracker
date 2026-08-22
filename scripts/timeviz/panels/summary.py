@@ -1,9 +1,9 @@
 """The side index: the window's totals, and the surface you select from.
 
-Reading top to bottom it answers three questions in order -- did the targeted
-work happen, where did the rest of the time go, and what did any of it grow.
-Every row with a number beside it is clickable, which is what makes this an
-index rather than a readout.
+Reading top to bottom it answers three questions in order -- how much of the
+planned work is actually done, where did the time go, and what did any of it
+grow. Every row with a number beside it is clickable, which is what makes
+this an index rather than a readout.
 """
 
 from matplotlib.patches import Rectangle
@@ -46,26 +46,10 @@ class SummaryPanel(Panel):
         n_logged = int((per_day_total >= MINUTES_PER_DAY).sum()) or 1
         n_partial = int(((per_day_total > 0) & (per_day_total < MINUTES_PER_DAY)).sum())
 
-        planned = ledger.planned(days, "targeted_work")
-        actual = totals["targeted_work"]
         picked = sel.buckets if sel else set()
 
         y = 0.988
-
-        ax.text(0, y, "TARGETED WORK", fontsize=8, color=MUTED)
-        y -= 0.040
-        ax.text(0, y, hm(actual) or "0h00", fontsize=22, color=INK, va="top")
-        y -= 0.056
-        if planned:
-            pct = actual / planned * 100
-            ax.text(0, y, f"of {hm(planned)} planned  ·  {pct:.0f}%",
-                    fontsize=9, color=INK_2)
-        else:
-            ax.text(0, y, "no plan logged for this range", fontsize=9, color=MUTED)
-
-        y -= 0.036
-        ax.plot([0, 1], [y, y], color=GRID, linewidth=0.8)
-        y -= 0.030
+        y = self._draw_completion(ax, ledger, y)
 
         if mode == "day":
             # n=1 breaks both halves of the usual line: "1 OF 1 DAYS LOGGED"
@@ -125,6 +109,42 @@ class SummaryPanel(Panel):
             y -= 0.046
 
         self._draw_growth(ax, days, gdata, ledger, sel, y)
+
+    def _draw_completion(self, ax, ledger, y):
+        """Percent-complete per project, rolled up from targets.csv +
+        progress-log.csv -- see model.py's `target_progress`.
+
+        Not clickable yet and not windowed by day/week/month, on purpose:
+        a target's percent is a current state, not a per-range quantity, and
+        drilling into a project's individual targets is a decision to make
+        once the rollup itself has proven worth having on screen.
+        """
+        progress = ledger.target_progress()
+        if not progress:
+            return y  # nothing active - the rest of the index just starts higher
+
+        ax.text(0, y, "COMPLETION", fontsize=8, color=MUTED)
+        y -= 0.038
+
+        for project in sorted(progress):
+            pct, _ = progress[project]
+            ax.text(0, y, project, fontsize=9, color=INK_2)
+            ax.text(1, y, f"{pct:.0f}%", fontsize=9, color=INK,
+                    ha="right", fontfamily="monospace")
+            y -= 0.020
+            bar_x, bar_w, bar_h = 0.0, 1.0, 0.009
+            ax.add_patch(Rectangle((bar_x, y - bar_h), bar_w, bar_h,
+                                   clip_on=False, color=UNLOGGED_COLOR))
+            if pct:
+                ax.add_patch(Rectangle(
+                    (bar_x, y - bar_h), bar_w * pct / 100, bar_h,
+                    clip_on=False, color=BUCKET_COLOR["targeted_work"]))
+            y -= 0.030
+
+        y -= 0.014
+        ax.plot([0, 1], [y, y], color=GRID, linewidth=0.8)
+        y -= 0.030
+        return y
 
     def _draw_growth(self, ax, days, gdata, ledger, sel, y):
         window = ledger.growth_in(days)
