@@ -5,6 +5,8 @@ function here is a pure transform, which is what makes them the cheapest
 things in the codebase to check.
 """
 
+import textwrap
+
 MINUTES_PER_DAY = 1440
 
 
@@ -45,6 +47,26 @@ def truncate(text, n):
     return text if len(text) <= n else text[:n - 1] + "…"
 
 
+def wrap(text, width=25, max_lines=3):
+    """A tooltip's box is only ever as wide as its widest line, and a single
+    60-char line is wide enough to clip near a figure edge however the box
+    is anchored -- so a long field wraps onto several narrow lines instead
+    of staying one long one. Word-wrapped at `width` characters (a proxy for
+    pixel width, not exact under a proportional font, but close enough at
+    this font size to keep every line comfortably short); `max_lines` caps
+    it with `…` on the last line if there's still more."""
+    text = str(text or "").strip()
+    if not text:
+        return ""
+    lines = textwrap.wrap(text, width=width) or [""]
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        last = lines[-1]
+        lines[-1] = (last[:width - 1].rstrip() + "…"
+                    if len(last) >= width else last + "…")
+    return "\n".join(lines)
+
+
 def row_label(row, growth=False):
     """'Planner · viz refactor', or with the growth ledger's extra clause.
 
@@ -62,13 +84,15 @@ def row_label(row, growth=False):
 
 
 def tooltip_text(row, growth=False):
-    """The three lines a hovered segment shows: what it was, when and how
-    long, and the note if there is one."""
+    """What a hovered segment shows: what it was, when and how long, and the
+    note if there is one -- each field wrapped to a narrow column rather
+    than run out as one long line, so the box stays short enough not to clip
+    near an edge (see Panel.paint())."""
     when = (f"{row['start']}–{row['end']}"
             if row["start"] and row["end"] else "untimed")
-    lines = [truncate(row_label(row, growth), 60),
+    lines = [wrap(row_label(row, growth)),
              f"{when}   {hm(row['minutes']) or '0h00'}"]
-    note = truncate(row.get("notes", ""), 70)
+    note = wrap(row.get("notes", ""))
     if note:
         lines.append(note)
     return "\n".join(lines)
