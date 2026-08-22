@@ -3,11 +3,13 @@
 
     python check.py
 
-Checks three files:
+Checks five files:
 
-  time-log.csv    sealed days, each must total exactly 24h
-  open-day.csv    the day in progress, expected to be short
-  growth-log.csv  the growth ledger -- an overlay, never reconciled to 24h
+  time-log.csv     sealed days, each must total exactly 24h
+  open-day.csv     the day in progress, expected to be short
+  growth-log.csv   the growth ledger -- an overlay, never reconciled to 24h
+  targets.csv      planned work items, one row per item
+  progress-log.csv the progress ledger -- an append-only percent trail per target
 
 Exits 1 if anything is wrong, so a bad append is caught immediately rather
 than surfacing as a strange bar three weeks later.
@@ -32,6 +34,8 @@ SEALED_FILE = DATA / "time-log.csv"
 OPEN_FILE = DATA / "open-day.csv"
 GROWTH_FILE = DATA / "growth-log.csv"
 PROJECTS_FILE = DATA / "projects.csv"
+TARGETS_FILE = DATA / "targets.csv"
+PROGRESS_FILE = DATA / "progress-log.csv"
 
 BUCKETS = {"sleep", "necessities", "obligations", "rest",
            "work", "targeted_work", "slack"}
@@ -44,8 +48,13 @@ GROWTH_TIERS = {
     "reading": {"fiction", "non-fiction", "article"},
     "audio": {"podcast", "audiobook"},
     "self-care": {"self-improvement", "hobby", "physical", "mental"},
+    "networking": {"networking"},
 }
 GROWTH_MODES = {"concurrent", "dedicated"}
+
+# A target abandoned partway through is not the same as one still in flight
+# at the same percent -- `status` is what tells those apart.
+TARGET_STATUS = {"active", "done", "dropped"}
 
 # A growth row's `bucket` echoes what the time log called the same block.
 # These are the buckets you can realistically stack a second activity onto --
@@ -267,6 +276,94 @@ def validate_growth(per_day_bucket, open_dates):
     return problems, warnings, len(rows), len(per_day_growth), fieldnames, rows
 
 
+def validate_targets(known_projects):
+    """Returns (problems, known_targets, fieldnames, rows).
+
+    `known_targets` maps target name -> minutes, for validate_progress and for
+    the hours-weighted rollup a future task view will compute from this file.
+    """
+    problems = []
+    known_targets = {}
+    fieldnames, rows = csv_io.read_rows(TARGETS_FILE)
+
+    for n, row in enumerate(rows, start=2):
+        where = f"{TARGETS_FILE.name} line {n}"
+
+        bad_shape = field_count_problem(row, where)
+        if bad_shape:
+            problems.append(bad_shape)
+            continue
+
+        target = row["target"].strip()
+        if target in known_targets:
+            problems.append(f"{where}: duplicate target {target!r} - "
+                            f"progress-log.csv can't tell the two apart")
+
+        project = row["project"].strip()
+        if project not in known_projects:
+            problems.append(f"{where}: project {project!r} is not in projects.csv")
+
+        try:
+            mins = int(row["minutes"])
+            if mins < 0:
+                problems.append(f"{where}: minutes must not be negative, got {mins}")
+        except (ValueError, KeyError):
+            problems.append(f"{where}: minutes is not an integer: "
+                            f"{row.get('minutes')!r}")
+            mins = 0
+
+        if row["status"].strip() not in TARGET_STATUS:
+            problems.append(f"{where}: status must be one of "
+                            f"{sorted(TARGET_STATUS)}, got {row['status']!r}")
+
+        known_targets[target] = mins
+
+    return problems, known_targets, fieldnames, rows
+
+
+def validate_progress(known_targets):
+    """Returns (problems, n_rows, n_targets, fieldnames, rows).
+
+    Append-only: a percent lower than the same target's last entry is allowed
+    -- re-scoping is real -- but only with a note, so a backwards step reads
+    as a deliberate correction rather than a silent contradiction.
+    """
+    problems = []
+    last_percent = {}
+    fieldnames, rows = csv_io.read_rows(PROGRESS_FILE)
+
+    for n, row in enumerate(rows, start=2):
+        where = f"{PROGRESS_FILE.name} line {n}"
+
+        bad_shape = field_count_problem(row, where)
+        if bad_shape:
+            problems.append(bad_shape)
+            continue
+
+        target = row["target"].strip()
+        if target not in known_targets:
+            problems.append(f"{where}: target {target!r} is not in targets.csv")
+            continue
+
+        try:
+            percent = int(row["percent"])
+            if not 0 <= percent <= 100:
+                problems.append(f"{where}: percent must be 0-100, got {percent}")
+                continue
+        except (ValueError, KeyError):
+            problems.append(f"{where}: percent is not an integer: "
+                            f"{row.get('percent')!r}")
+            continue
+
+        prev = last_percent.get(target)
+        if prev is not None and percent < prev and not row["notes"].strip():
+            problems.append(f"{where}: {target!r} dropped from {prev}% to "
+                            f"{percent}% with no note explaining the re-scope")
+        last_percent[target] = percent
+
+    return problems, len(rows), len(last_percent), fieldnames, rows
+
+
 def main():
     known_projects = load_projects()
 
@@ -282,8 +379,10 @@ def main():
     open_dates = {d for d, _ in opened[4]}
 
     growth = validate_growth(per_day_bucket, open_dates)
+    targets = validate_targets(known_projects)
+    progress = validate_progress(targets[1])
 
-    problems = sealed[0] + opened[0] + growth[0]
+    problems = sealed[0] + opened[0] + growth[0] + targets[0] + progress[0]
     warnings = sealed[1] + opened[1] + growth[1]
 
     for w in warnings:
@@ -308,6 +407,11 @@ def main():
         print(f"     growth-log.csv: {growth[2]} rows across {growth[3]} day(s)")
     else:
         print("     growth-log.csv: empty")
+    if targets[1]:
+        print(f"     targets.csv: {len(targets[1])} target(s)")
+    if progress[1]:
+        print(f"     progress-log.csv: {progress[1]} rows across "
+              f"{progress[2]} target(s)")
 
     # Only normalize once everything checks out clean -- rewriting a file that
     # has a real problem in it would make the problem harder to spot in a
@@ -315,7 +419,9 @@ def main():
     touched = []
     for path, fields, rows in ((SEALED_FILE, sealed[5], sealed[6]),
                                (OPEN_FILE, opened[5], opened[6]),
-                               (GROWTH_FILE, growth[4], growth[5])):
+                               (GROWTH_FILE, growth[4], growth[5]),
+                               (TARGETS_FILE, targets[2], targets[3]),
+                               (PROGRESS_FILE, progress[3], progress[4])):
         if fields and csv_io.normalize_file(path, fields, rows):
             touched.append(path.name)
     if touched:
