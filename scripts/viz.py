@@ -11,6 +11,9 @@ it as the summary view.
     python viz.py --day        # start in day view, on today
     python viz.py --png out.png            # render instead of opening a window
     python viz.py --png out.png --select slack   # render with slack selected
+    python viz.py --day-tags tags.csv      # tint the timeline by a `date,tag`
+                                            # CSV that lives outside this repo's
+                                            # own schema entirely
 
 Navigation:
     [< Prev] [Next >] buttons, or the left/right arrow keys

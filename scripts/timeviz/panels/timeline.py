@@ -39,7 +39,7 @@ class TimelinePanel(Panel):
     def hit(self, event):
         return self.hits.find(event.ydata, event.xdata)
 
-    def draw(self, days, ledger, sel, roomy):
+    def draw(self, days, ledger, sel, roomy, day_tags=None, day_tag_colors=None):
         ax = self.ax
         ax.clear()
         ax.set_facecolor(SURFACE)
@@ -72,11 +72,22 @@ class TimelinePanel(Panel):
         total_x = 23.8 if sel else 24 + gutter
         untimed_x = 21.6 if sel else total_x - 1.0
 
-        # A faint band per day, so empty days read as empty rather than absent.
-        for i in range(n):
-            if i % 2 == 0:
-                ax.axhspan(i - 0.5, i + 0.5, color=blend(GRID, 0.45),
-                           zorder=0, linewidth=0)
+        # A faint band per day, so empty days read as empty rather than
+        # absent. A day carrying an optional --day-tags value gets that tag's
+        # colour instead of the plain zebra stripe -- still subtle (blended
+        # hard toward the surface), so it reads as context, not a bucket.
+        day_tags = day_tags or {}
+        for i, day in enumerate(days):
+            tag = day_tags.get(day)
+            if tag:
+                color = blend(day_tag_colors[tag], 0.72)
+            elif i % 2 == 0:
+                color = blend(GRID, 0.45)
+            else:
+                color = None
+            if color:
+                ax.axhspan(i - 0.5, i + 0.5, color=color, zorder=0,
+                           linewidth=0)
 
         untimed = {}
         totals = {}

@@ -63,6 +63,11 @@ GROWTH_MODES = ["concurrent", "dedicated"]
 # Not a bucket - this is absent data, so it gets the faintest neutral there is.
 UNLOGGED_COLOR = "#E6E8EA"
 
+# Colours for an optional, schema-external per-day tag (see --day-tags in
+# cli.py) -- the tracker never knows what a tag means, only how many distinct
+# values showed up, so this stays a plain rotation rather than a vocabulary.
+DAY_TAG_PALETTE = ["#C9A66B", "#6E8FAE", "#8FA67B", "#AE6E8F"]
+
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
 INK_2 = "#52514e"
@@ -90,6 +95,14 @@ def blend(hex_color, amount, toward=SURFACE):
     b = [int(toward[i:i + 2], 16) for i in (1, 3, 5)]
     return "#%02x%02x%02x" % tuple(
         round(x + (y - x) * amount) for x, y in zip(a, b))
+
+
+def day_tag_colors(tags):
+    """tag value -> hex, stable within a run and deterministic across runs
+    (sorted, not first-seen), drawn from DAY_TAG_PALETTE."""
+    names = sorted(set(tags))
+    return {name: DAY_TAG_PALETTE[i % len(DAY_TAG_PALETTE)]
+            for i, name in enumerate(names)}
 
 
 def ink_on(hex_color):

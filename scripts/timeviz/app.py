@@ -23,7 +23,7 @@ from .formats import tooltip_text
 from .panels import (BarsPanel, DetailPanel, StripPanel, SummaryPanel,
                      TimelinePanel)
 from .selection import BUCKET, GROWTH, Selection
-from .theme import INK, INK_2, SLOT_BUCKET, SURFACE
+from .theme import INK, INK_2, SLOT_BUCKET, SURFACE, day_tag_colors
 from .window import Window
 
 # Figure geometry. The main column and the side column; everything vertical
@@ -36,10 +36,15 @@ SIDE_FRAME = [SIDE_L, BOTTOM, SIDE_W, TOP - BOTTOM]
 
 
 class Viz:
-    def __init__(self, ledger, anchor, mode="week", select=None):
+    def __init__(self, ledger, anchor, mode="week", select=None, day_tags=None):
         self.ledger = ledger
         self.window = Window(anchor, mode)
         self.sel = Selection.parse(select) if select else None
+        # Optional, schema-external: date -> tag, from --day-tags. Colours
+        # are assigned on load since the tracker never knows the vocabulary
+        # ahead of time.
+        self.day_tags = day_tags or {}
+        self.day_tag_colors = day_tag_colors(self.day_tags.values())
 
         self.fig = plt.figure(figsize=(15, 10), facecolor=SURFACE)
         self.fig.canvas.manager.set_window_title("Time tracker")
@@ -315,7 +320,9 @@ class Viz:
             self.strip.draw(days, gdata, self.ledger, self.sel, roomy,
                             day_labels=labelled is self.strip)
         if self.timeline.visible:
-            self.timeline.draw(days, self.ledger, self.sel, roomy)
+            self.timeline.draw(days, self.ledger, self.sel, roomy,
+                               day_tags=self.day_tags,
+                               day_tag_colors=self.day_tag_colors)
         self.side.draw(days, data, gdata, self.ledger, self.sel,
                        self.window.mode)
         self.detail.draw(days, self.ledger, self.sel)
