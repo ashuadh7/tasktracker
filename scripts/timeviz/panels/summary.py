@@ -167,11 +167,12 @@ class SummaryPanel(Panel):
         order (see that function's docstring). Hoverable for the per-target
         breakdown; clicking a segment sets `target_sel` (owned by Viz, not
         this panel) to that target, and a matching segment gets the window
-        it was planned for plus the loose (project-wide, see
-        `Ledger.target_minutes`) minutes logged against it drawn beneath the
-        bar -- see issue #29. Two facts side by side, deliberately never a
-        rate: minutes-per-percent-point is exactly the correlation the
-        progress ledger (#19) rejected.
+        it was planned for plus the minutes actually tagged to it (see
+        `Ledger.target_minutes` -- exact, via the `target` column on
+        time-log.csv, not a project-wide guess) drawn beneath the bar -- see
+        issue #29. Two facts side by side, deliberately never a rate:
+        minutes-per-percent-point is exactly the correlation the progress
+        ledger (#19) rejected.
         """
         self._completion_hits = []
         progress = ledger.target_progress()
@@ -231,12 +232,9 @@ class SummaryPanel(Panel):
                         color=INK_2, fontweight="bold")
                 y -= 0.019
                 planned = f"planned for {window}" if window else "no window set"
-                logged = ledger.target_minutes(project, window)
-                if logged is None:
-                    fact = f"{planned}  ·  can't tell how much was logged"
-                else:
-                    fact = (f"{planned}  ·  {hm(logged) or '0h00'} logged "
-                            f"toward it  ·  {tpct}% done")
+                logged = ledger.target_minutes(name)
+                fact = (f"{planned}  ·  {hm(logged) or '0h00'} logged "
+                        f"toward it  ·  {tpct}% done")
                 ax.text(0.02, y, fact, fontsize=8, color=MUTED)
                 y -= 0.030
 

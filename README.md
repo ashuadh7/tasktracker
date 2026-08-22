@@ -94,7 +94,7 @@ Capture is conversational, not scheduled: a percent gets recorded whenever it's 
 ## time-log.csv columns
 
 ```
-date,start,end,minutes,bucket,domain,project,activity,confidence,notes
+date,start,end,minutes,bucket,domain,project,activity,target,confidence,notes
 ```
 
 - **date** — ISO `YYYY-MM-DD`, always. Never "Aug 10" (no year, sorts wrong).
@@ -104,6 +104,7 @@ date,start,end,minutes,bucket,domain,project,activity,confidence,notes
 - **domain** — `research` / `teaching` / `personal` / `health` / `admin`. Blank for sleep, necessities, slack.
 - **project** — free string, validated against `projects.csv`. Blank when not project-work.
 - **activity** — what you actually did, **short — a label, not a sentence**. `formative study analysis`, not `continued working through the formative study analysis, focusing on P07's transcript`. The elaboration belongs in `notes`; see there for why this split matters more than it looks.
+- **target** — which `targets.csv` row this was actually toward, exact string match. Only meaningful on a `targeted_work` row; blank everywhere else. This is the join `activity` free text can't safely be, because `activity` is a label like `P03` or `transcription` with nothing pointing at a specific planned item — see the completion index's click-through, which sums this column rather than guessing from `activity`. **Forward-only**: rows before 2026-08-22 predate the tag and stay blank, same as the midnight-crossing sleep rule predating Aug 15. `check.py` requires it on any `targeted_work` row dated on or after that, the same way it requires a named `activity` on `slack`.
 - **confidence** — `logged` (recorded same day) or `reconstructed` (rebuilt after the fact). Aug 11–14 2026 is all `reconstructed` and should not be trusted at the same precision as later weeks.
 - **notes** — free text, the detail `activity` deliberately leaves out. Quote the field if it contains a comma. **This split is what makes the visualizer's hover tooltip readable**: it shows `activity` as the headline and `notes` wrapped underneath, so a long `activity` and a long `notes` both fighting for the same short line is what used to make tooltips overrun and overlap the panel next to them (see `logging-protocol.md`). Keeping `activity` to a few words isn't just tidiness — it's the label a tooltip, the detail list, and a three-years-later skim all read first.
 

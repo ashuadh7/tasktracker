@@ -6,8 +6,6 @@ than visible -- which slot a sleep row belongs in, whether a day's minutes add
 to 1440 -- can be exercised without opening a window.
 """
 
-import datetime as dt
-import re
 import sys
 from pathlib import Path
 
@@ -30,48 +28,6 @@ PROGRESS_FILE = DATA / "progress-log.csv"
 
 MIDNIGHT = {"00:00", "24:00"}
 
-_MONTHS = {name: i for i, name in enumerate(
-    ["jan", "feb", "mar", "apr", "may", "jun",
-     "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
-_WINDOW_RE = re.compile(
-    r"([A-Za-z]{3,})\s+(\d{1,2})\s*-\s*(?:([A-Za-z]{3,})\s+)?(\d{1,2})$")
-
-
-def parse_window(window, today=None):
-    """"Aug 15-21" or "Aug 29-Sep 4" -> (start, end) dates, for issue #29's
-    loose match. The field never carries a year, so one is inferred from
-    proximity to `today`; None for anything that doesn't match this shape --
-    `window` is free text (see targets.csv's header), and guessing wrong is
-    worse than admitting it can't be read.
-    """
-    if not window:
-        return None
-    m = _WINDOW_RE.match(window.strip())
-    if not m:
-        return None
-    mon1, d1, mon2, d2 = m.groups()
-    mon1 = _MONTHS.get(mon1[:3].lower())
-    mon2 = _MONTHS.get(mon2[:3].lower()) if mon2 else mon1
-    if not mon1 or not mon2:
-        return None
-    today = today or dt.date.today()
-    year = today.year
-    try:
-        start = dt.date(year, mon1, int(d1))
-        end = dt.date(year if mon2 >= mon1 else year + 1, mon2, int(d2))
-    except ValueError:
-        return None
-    # A window is only ever a few weeks wide, so if the nearest-year guess
-    # still lands months away from today, it's really the year on the other
-    # side of new year's.
-    if (start - today).days > 200:
-        start, end = (start.replace(year=start.year - 1),
-                      end.replace(year=end.year - 1))
-    elif (today - end).days > 200:
-        start, end = (start.replace(year=start.year + 1),
-                      end.replace(year=end.year + 1))
-    return start, end
-
 
 def slot_of(row):
     """Which stack position a log row occupies."""
@@ -88,7 +44,12 @@ def slot_of(row):
 def read_log(path):
     """One time-log-shaped file as a DataFrame, decoded leniently and with
     start/end already zero-padded (see csv_io.py -- this is what tolerates a
-    file last saved by Excel). Blank start/end stay blank, not 'nan'."""
+    file last saved by Excel). Blank start/end stay blank, not 'nan'.
+
+    `target` is backfilled to "" when the file predates that column -- a
+    forward-only addition (see README's time-log.csv columns), so any row
+    from before it was introduced simply has none.
+    """
     fieldnames, rows = csv_io.read_rows(path)
     if not fieldnames:
         return pd.DataFrame()
@@ -96,7 +57,9 @@ def read_log(path):
     if frame.empty:
         return frame
     frame["date"] = pd.to_datetime(frame["date"])
-    for col in ("start", "end", "project", "activity", "notes"):
+    if "target" not in frame.columns:
+        frame["target"] = ""
+    for col in ("start", "end", "project", "activity", "target", "notes"):
         if col in frame.columns:
             frame[col] = frame[col].fillna("").astype(str).str.strip()
     return frame
@@ -292,26 +255,18 @@ class Ledger:
                             "items": items}
         return out
 
-    def target_minutes(self, project, window):
-        """Minutes logged toward `project` within `window`'s date span --
-        the loose match issue #29 settled on. No column in time-log.csv
-        links a row to a specific target, so this sums every row for the
-        whole project across the window rather than just the rows that
-        actually served this one -- approximate on purpose, and meant to be
-        shown only paired with the window string, never alone, so it never
-        reads as more precise than it is.
+    def target_minutes(self, target):
+        """Minutes logged with this exact `target` tag -- see #29's
+        follow-up: a `targeted_work` row now names the specific targets.csv
+        item it was toward (see README's time-log.csv columns), so this is
+        an exact sum, not a project-wide approximation. Target names are
+        unique (check.py enforces it), so no project filter is needed.
 
-        None if `window` doesn't parse into real dates (see `parse_window`)
-        -- a click can't show a number it can't actually derive.
+        Untagged work doesn't count here, including everything logged before
+        the tag existed -- that's the honest answer for a row that never
+        said which target it was for, not a bug to work around.
         """
-        span = parse_window(window)
-        if span is None:
-            return None
-        start, end = span
-        stamps = pd.date_range(start, end)
-        return int(self.log[
-            (self.log["project"] == project) & self.log["date"].isin(stamps)
-        ]["minutes"].sum())
+        return int(self.log[self.log["target"] == target]["minutes"].sum())
 
     def growth_in(self, days):
         if self.growth.empty:

@@ -199,6 +199,15 @@ Leave the day out of `time-log.csv` entirely. It renders as a grey unlogged bar,
 
 Two things at once → the dominant one wins. No double counting; the day must sum to 1440. **The thing that lost goes in the growth ledger if it belongs there** — see below.
 
+## Tagging targeted_work to a target
+
+`activity` was never enough to tell which planned item a `targeted_work` row was actually for — `P03`, `reading and writing`, `Throughline work` are labels, not a pointer at a specific row in `targets.csv`. That gap is what made the completion index's click-through (see the visualizer) unable to show more than a project-wide guess. The `target` column fixes it: **every `targeted_work` row gets the exact `targets.csv` `target` string it was toward**, filled in the same pass as everything else in step 2 of the loop, not asked about separately.
+
+- **Ask, don't guess, when it's not obvious.** If exactly one active target for that project fits what he described, fill it in and say so rather than asking. If several could fit, ask which one — batched with the rest of that pass's questions, same as any other ambiguity.
+- **Blank is a real answer.** Not every hour of project work maps to something on the plan — ad hoc work, a target not yet in `targets.csv`, cleanup that doesn't belong to any listed item. Leave `target` blank rather than forcing a mismatch; `check.py` only requires it when a fit actually exists and wasn't named.
+- **One target per row.** A row that genuinely served two targets should be split into two rows (same as any other bucket-mixing case), not tagged with both.
+- **Never retag history.** This rule took effect 2026-08-22; rows before that predate the column and stay blank forever, same as the midnight-crossing sleep rule predating Aug 15. `check.py` only enforces the tag on rows dated on or after the cutover — see `README.md`'s `time-log.csv` columns for the exact rule.
+
 ## The growth ledger
 
 The time log answers *where did the day go*. `growth-log.csv` answers *what was he putting into himself*. Same minutes, different question, so it never touches the 1440 arithmetic.
