@@ -244,15 +244,21 @@ class Viz:
         if panel is not None:
             text = None
             if row_id is not None:
-                row = self.ledger.frame_for(source).loc[row_id]
-                text = tooltip_text(row, source == "growth")
+                if source == "target":
+                    # Not a log/growth row -- a joined targets.csv +
+                    # progress-log.csv figure the panel already built while
+                    # drawing the completion bars, so it owns the text too.
+                    text = panel.target_tooltip(row_id)
+                else:
+                    row = self.ledger.frame_for(source).loc[row_id]
+                    text = tooltip_text(row, source == "growth")
             panel.paint(text, event)
 
     def _on_draw_event(self, event):
         """Snapshot a clean background per chart axes for hover blitting.
         Fires after every real canvas draw (draw_idle flushing, resize,
         savefig)."""
-        for panel in (self.bars, self.strip, self.timeline):
+        for panel in (self.bars, self.strip, self.timeline, self.side):
             panel.snapshot()
 
     # -- drawing -----------------------------------------------------------

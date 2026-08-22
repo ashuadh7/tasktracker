@@ -13,17 +13,38 @@ from ..hits import BandHits
 from ..selection import BUCKET, GROWTH, Selection, shade_for
 from ..theme import (BUCKET_COLOR, BUCKET_ORDER, CATEGORY_COLOR, GRID,
                      GROWTH_KEYS, GROWTH_MODES, INK, INK_2, MUTED, SLOTS,
-                     SLOT_BUCKET, TIERS, UNLOGGED_COLOR, blend)
+                     SLOT_BUCKET, TIERS, UNLOGGED_COLOR, blend, target_hue,
+                     target_muted)
 from .base import Panel
 
 
 class SummaryPanel(Panel):
+    HOVERS = True  # the completion bars only -- see hover_target
+
     def __init__(self, fig, rect):
         super().__init__(fig, rect, axis_off=True)
         self.hits = BandHits()
+        self._completion_hits = []
 
     def hit(self, event):
         return self.hits.find(event.ydata)
+
+    def hover_target(self, event):
+        """(i, "target") for the completion segment under the cursor.
+
+        Bucket/growth rows still have no hover -- click is how they've
+        always worked -- so this only ever matches inside the completion
+        bars, which need x *and* y (BandHits only resolves y).
+        """
+        if event.xdata is None or event.ydata is None:
+            return None
+        for i, (x0, x1, y0, y1, _) in enumerate(self._completion_hits):
+            if x0 <= event.xdata < x1 and y0 <= event.ydata <= y1:
+                return i, "target"
+        return None
+
+    def target_tooltip(self, i):
+        return self._completion_hits[i][4]
 
     def draw(self, days, data, gdata, ledger, sel, mode):
         ax = self.ax
@@ -109,16 +130,21 @@ class SummaryPanel(Panel):
             y -= 0.046
 
         self._draw_growth(ax, days, gdata, ledger, sel, y)
+        self.tooltip_artist()
 
     def _draw_completion(self, ax, ledger, y):
         """Percent-complete per project, rolled up from targets.csv +
         progress-log.csv -- see model.py's `target_progress`.
 
-        Not clickable yet and not windowed by day/week/month, on purpose:
-        a target's percent is a current state, not a per-range quantity, and
-        drilling into a project's individual targets is a decision to make
-        once the rollup itself has proven worth having on screen.
+        Not windowed by day/week/month, on purpose: a target's percent is a
+        current state, not a per-range quantity. The rollup bar is itself
+        broken into one segment per target, sized by its hour estimate and
+        coloured by `theme.target_hue` -- an ordinal ramp keyed to planning
+        order (see that function's docstring). Hoverable for the per-target
+        breakdown; not clickable yet -- drilling in on click is a decision
+        for once this has proven worth having on screen.
         """
+        self._completion_hits = []
         progress = ledger.target_progress()
         if not progress:
             return y  # nothing active - the rest of the index just starts higher
@@ -126,20 +152,45 @@ class SummaryPanel(Panel):
         ax.text(0, y, "COMPLETION", fontsize=8, color=MUTED)
         y -= 0.038
 
+        bar_h, gap = 0.014, 0.004
         for project in sorted(progress):
-            pct, _ = progress[project]
+            info = progress[project]
+            pct, weight, items = info["rollup"], info["weight"], info["items"]
             ax.text(0, y, project, fontsize=9, color=INK_2)
             ax.text(1, y, f"{pct:.0f}%", fontsize=9, color=INK,
                     ha="right", fontfamily="monospace")
             y -= 0.020
-            bar_x, bar_w, bar_h = 0.0, 1.0, 0.009
-            ax.add_patch(Rectangle((bar_x, y - bar_h), bar_w, bar_h,
+            bar_top, bar_bot = y, y - bar_h
+
+            ax.add_patch(Rectangle((0, bar_bot), 1.0, bar_h,
                                    clip_on=False, color=UNLOGGED_COLOR))
-            if pct:
-                ax.add_patch(Rectangle(
-                    (bar_x, y - bar_h), bar_w * pct / 100, bar_h,
-                    clip_on=False, color=BUCKET_COLOR["targeted_work"]))
-            y -= 0.030
+
+            n = len(items)
+            last_drawn = max((i for i, (_, m, _) in enumerate(items) if m > 0),
+                             default=-1)
+            x = 0.0
+            for i, (name, mins, tpct) in enumerate(items):
+                if mins <= 0:
+                    continue  # unestimated - excluded from the rollup, not drawn
+                seg_x0 = x
+                x += mins / weight
+                seg_x1 = x - (gap if i != last_drawn else 0)
+                seg_w = max(0.0, seg_x1 - seg_x0)
+                if seg_w <= 0:
+                    continue
+
+                bright = target_hue(i, n)
+                muted = target_muted(bright)
+                done_w = seg_w * (tpct / 100)
+                ax.add_patch(Rectangle((seg_x0, bar_bot), done_w, bar_h,
+                                       clip_on=False, color=bright))
+                ax.add_patch(Rectangle((seg_x0 + done_w, bar_bot),
+                                       seg_w - done_w, bar_h,
+                                       clip_on=False, color=muted))
+                self._completion_hits.append((
+                    seg_x0, seg_x0 + seg_w, bar_bot, bar_top,
+                    f"{name} ({hm(mins) or '0h00'})\n{tpct}% done"))
+            y = bar_bot - 0.016
 
         y -= 0.014
         ax.plot([0, 1], [y, y], color=GRID, linewidth=0.8)

@@ -207,14 +207,21 @@ class Ledger:
         ]["minutes"].sum()
 
     def target_progress(self):
-        """project -> (rollup percent, total minutes) across active targets.
+        """project -> {"rollup": pct, "weight": minutes,
+                        "items": [(target, minutes, percent), ...]}
 
         Not scoped to a window -- a target lives across many days and its
         percent is a current state, not a per-day quantity, so this always
         reflects the open set regardless of what's on screen. The rollup is
         hours-weighted: a target with no progress-log.csv entry yet counts as
         0%, and a target with a 0-minute estimate drops out on its own (zero
-        weight contributes to neither side of the ratio).
+        weight contributes to neither side of the ratio) but stays in
+        `items` so a view can still list it.
+
+        `items` keeps targets.csv's own row order per project -- the order
+        the targets were listed when the goal was planned -- because that
+        order is priority, not just display order (see theme.py's
+        `target_hue`).
         """
         if self.targets.empty:
             return {}
@@ -229,12 +236,15 @@ class Ledger:
 
         out = {}
         for project, group in active.groupby("project"):
-            weight = int(group["minutes"].sum())
+            items = [(row["target"], int(row["minutes"]),
+                     int(latest.get(row["target"], 0)))
+                    for _, row in group.iterrows()]
+            weight = sum(m for _, m, _ in items)
             if weight == 0:
                 continue
-            weighted = sum(latest.get(t, 0) * m
-                          for t, m in zip(group["target"], group["minutes"]))
-            out[project] = (weighted / weight, weight)
+            weighted = sum(m * p for _, m, p in items)
+            out[project] = {"rollup": weighted / weight, "weight": weight,
+                            "items": items}
         return out
 
     def growth_in(self, days):
