@@ -1,14 +1,33 @@
-date,minutes,bucket,domain,project,activity,notes
-2026-08-11,180,targeted_work,research,NSERC,brainstorm narrative,07:00-10:00
-2026-08-11,250,targeted_work,research,Throughline,analyze formative study,10:00-12:00 + 14:00-16:10
-2026-08-12,90,targeted_work,research,Vibecoding,read related-works papers,14:00-15:30
-2026-08-12,90,targeted_work,research,Throughline,analyze formative study,07:00-07:30 + 15:30-16:30
-2026-08-13,180,targeted_work,research,Throughline,write up formative-study findings,08:00-12:30 block
-2026-08-13,140,targeted_work,research,Vibecoding,read related-works papers,08:00-12:30 block + 14:30-15:50
-2026-08-14,270,targeted_work,research,Vibecoding,reading and writing,08:00-09:00 + 10:00-12:30 + 15:00-16:00
-2026-08-16,120,targeted_work,research,NSERC,cleaner plan/concept,11:00-13:00 UTC (Notion Task Tracker)
-2026-08-16,60,targeted_work,research,NSERC,prep slide,13:00-14:00 UTC (Notion Task Tracker)
-2026-08-16,60,targeted_work,research,Vibecoding,reading,14:00-15:00 UTC (Notion Task Tracker)
-2026-08-16,120,targeted_work,research,Throughline,formative study analysis,15:00-17:00 UTC (Notion Task Tracker)
-2026-08-16,120,targeted_work,research,Throughline,"formative study analysis (finish, 8h total)",18:00-20:00 UTC (Notion Task Tracker)
-2026-08-16,60,targeted_work,research,Vibecoding,reading,20:00-21:00 UTC (Notion Task Tracker)
+﻿date,start,end,minutes,bucket,domain,project,activity,target,notes
+2026-08-11,,,180,targeted_work,research,NSERC,brainstorm narrative,,07:00-10:00
+2026-08-11,,,250,targeted_work,research,Throughline,analyze formative study,,10:00-12:00 + 14:00-16:10
+2026-08-12,,,90,targeted_work,research,Vibecoding,read related-works papers,,14:00-15:30
+2026-08-12,,,90,targeted_work,research,Throughline,analyze formative study,,07:00-07:30 + 15:30-16:30
+2026-08-13,,,180,targeted_work,research,Throughline,write up formative-study findings,,08:00-12:30 block
+2026-08-13,,,140,targeted_work,research,Vibecoding,read related-works papers,,08:00-12:30 block + 14:30-15:50
+2026-08-14,,,270,targeted_work,research,Vibecoding,reading and writing,,08:00-09:00 + 10:00-12:30 + 15:00-16:00
+2026-08-15,14:00,17:00,180,targeted_work,research,Throughline,formative study analysis,Finish wrapping up the formative study analysis,Throughline — Aug 15 revision
+2026-08-15,19:30,20:30,60,targeted_work,research,Throughline,formative study analysis (squeeze),Finish wrapping up the formative study analysis,Throughline — optional squeeze
+2026-08-16,07:00,09:00,120,targeted_work,research,NSERC,cleaner plan/concept,Work the plan/concept into a cleaner picture,NSERC Scholarship — Aug 15 revision
+2026-08-16,09:00,10:00,60,targeted_work,research,NSERC,prep slide,Prep a slide: succinct and structured,NSERC Scholarship — before Mon 1pm
+2026-08-16,10:00,11:00,60,targeted_work,research,Vibecoding,reading,Read related-works papers,Vibecoding — before Fri 11am
+2026-08-16,11:00,13:00,120,targeted_work,research,Throughline,formative study analysis,Finish wrapping up the formative study analysis,Throughline — Aug 15 revision
+2026-08-16,14:00,16:00,120,targeted_work,research,Throughline,"formative study analysis (finish, 8h total)",Finish wrapping up the formative study analysis,Throughline — analysis wraps here
+2026-08-16,16:00,17:00,60,targeted_work,research,Vibecoding,reading,Read related-works papers,Vibecoding — before Fri 11am
+2026-08-17,07:00,10:00,180,targeted_work,research,Vibecoding,"reading (finish, 5h total)",Read related-works papers,Vibecoding — reading wraps here
+2026-08-17,10:00,12:00,120,targeted_work,research,Throughline,glean findings -> Challenges/DR,Glean findings into implications for Challenges + Design Requirements,Throughline — Aug 15 revision
+2026-08-17,14:00,14:30,30,targeted_work,research,NSERC,check what other info is needed,Check what other info is needed post-Monday-feedback,"NSERC — post-Monday-feedback, before Tue 10am"
+2026-08-17,14:30,15:30,60,targeted_work,research,NSERC,plan next steps,Plan what to work on next,NSERC — before Tue 10am
+2026-08-17,15:30,16:30,60,targeted_work,research,NSERC,build Tuesday's presentation,Build Tuesday's presentation succinct,"NSERC — all NSERC done here, well ahead of Tue 10am"
+2026-08-17,16:30,17:00,30,targeted_work,research,Throughline,Overleaf rough draft (start),Rough draft in Overleaf: formative study + DR for baseline,Throughline — formative study + baseline DR
+2026-08-18,08:00,10:00,120,targeted_work,research,Throughline,Overleaf rough draft,Rough draft in Overleaf: formative study + DR for baseline,Throughline — formative study + baseline DR
+2026-08-18,11:00,11:30,30,targeted_work,research,Throughline,"Overleaf rough draft (finish, 3h total)",Rough draft in Overleaf: formative study + DR for baseline,Throughline — draft wraps here
+2026-08-18,11:30,13:00,90,targeted_work,research,Vibecoding,draft related works,Draft related works,Vibecoding — before Fri 11am
+2026-08-18,14:45,16:00,75,targeted_work,research,Vibecoding,draft related works,Draft related works,Vibecoding — before Fri 11am
+2026-08-19,08:00,09:15,75,targeted_work,research,Vibecoding,"draft related works (finish, 4h total)",Draft related works,Vibecoding — related works wraps here
+2026-08-19,09:15,11:15,120,targeted_work,research,Throughline,refine introduction,Refine the introduction,Throughline — Throughline's ~15h fully wraps here
+2026-08-19,11:15,12:15,60,targeted_work,research,Vibecoding,quantitative results,Write quantitative results,Vibecoding — before Fri 11am
+2026-08-19,13:15,14:15,60,targeted_work,research,Vibecoding,"quantitative results (finish, 2h total)",Write quantitative results,Vibecoding — before Fri 11am
+2026-08-19,14:15,15:15,60,targeted_work,research,Vibecoding,"Selena's chart, suggest alternative",Think through Selena's chart and suggest an alternative,Vibecoding — Vibecoding's ~12h fully wraps here
+2026-08-20,07:00,11:00,240,targeted_work,research,Throughline,carry-over (pipeline/dev or sketch UI),,"Throughline — carried from last week's plan, no fresh estimate given"
+2026-08-20,13:00,14:00,60,targeted_work,research,Throughline,"carry-over, continue",,Throughline — carried from last week's plan
