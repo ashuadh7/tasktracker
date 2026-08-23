@@ -1,51 +1,200 @@
-﻿date,start,end,minutes,bucket,domain,project,activity,confidence,notes
-2026-08-11,,,360,sleep,,,sleep,reconstructed,flat 6h assumption
-2026-08-11,,,120,necessities,,,eating,reconstructed,includes daytime lunch break
-2026-08-11,,,30,necessities,,,shower,reconstructed,
-2026-08-11,,,80,necessities,,,cleaning and cooking,reconstructed,
-2026-08-11,,,40,necessities,,,wife transport,reconstructed,20m each way on her work days
-2026-08-11,07:00,08:00,60,targeted_work,research,NSERC,brainstorm narrative,reconstructed,planned 3h; only 1h real work
-2026-08-11,10:00,12:00,120,targeted_work,research,Throughline,analyze formative study,reconstructed,
-2026-08-11,13:00,14:00,60,work,research,Throughline,async progress report for Jian,reconstructed,replaced cancelled meeting
-2026-08-11,16:10,16:40,30,obligations,,,prep to leave,reconstructed,
-2026-08-11,16:40,18:10,90,obligations,,,drive to clinic,reconstructed,
-2026-08-11,18:10,18:40,30,obligations,health,,clinic appointment,reconstructed,
-2026-08-11,18:40,19:00,20,obligations,,,transit buffer to exam,reconstructed,
-2026-08-11,19:00,22:00,180,work,teaching,CS349,proctor final exam,reconstructed,
-2026-08-11,22:00,22:30,30,work,teaching,CS349,wrap up after proctoring,reconstructed,
-2026-08-11,22:30,00:00,90,obligations,,,drive home,reconstructed,
-2026-08-11,,,100,slack,,,unaccounted,reconstructed,residual to 24h; no evening-with-wife block - home past midnight
-2026-08-12,,,360,sleep,,,sleep,reconstructed,flat 6h assumption
-2026-08-12,,,120,necessities,,,eating,reconstructed,
-2026-08-12,,,30,necessities,,,shower,reconstructed,
-2026-08-12,,,80,necessities,,,cleaning and cooking,reconstructed,
-2026-08-12,,,40,necessities,,,wife transport,reconstructed,
-2026-08-12,,,135,necessities,,,evening with wife,reconstructed,walk 45 + eat together 30 + relax 60
-2026-08-12,07:30,08:00,30,obligations,,,prep to leave,reconstructed,
-2026-08-12,08:00,09:30,90,obligations,,,drive to campus,reconstructed,
-2026-08-12,09:30,10:00,30,obligations,,,buffer before marking,reconstructed,
-2026-08-12,10:00,16:00,360,work,teaching,CS349,marking,reconstructed,planned 4h; ran 6h - overran into afternoon project blocks
-2026-08-12,16:00,17:30,90,obligations,,,drive home and pick up wife,reconstructed,
-2026-08-12,,,75,slack,,,unaccounted,reconstructed,residual to 24h
-2026-08-13,,,360,sleep,,,sleep,reconstructed,flat 6h assumption
-2026-08-13,,,120,necessities,,,eating,reconstructed,
-2026-08-13,,,30,necessities,,,shower,reconstructed,
-2026-08-13,,,80,necessities,,,cleaning and cooking,reconstructed,
-2026-08-13,,,135,necessities,,,evening with wife,reconstructed,walk 45 + eat together 30 + relax 60
-2026-08-13,,,120,obligations,,,shopping,reconstructed,
-2026-08-13,14:00,15:00,60,work,research,Throughline,Marginalia meeting,reconstructed,
-2026-08-13,,,60,work,research,Vibecoding,Selena meeting,reconstructed,moved from Fri 14 in replan; original slot 09:00-10:00
-2026-08-13,,,90,work,research,WVisdom,lab meeting,reconstructed,moved from Fri 14 in replan; original slot 13:30-15:00
-2026-08-13,15:00,15:50,50,targeted_work,research,Vibecoding,read related-works papers,reconstructed,skimmed ~4 papers; zero write-ups
-2026-08-13,15:50,16:20,30,obligations,,,prep to leave,reconstructed,
-2026-08-13,16:20,17:50,90,obligations,,,drive to clinic with wife,reconstructed,
-2026-08-13,17:50,18:00,10,obligations,health,,wife doctor appointment,reconstructed,
-2026-08-13,18:00,19:30,90,obligations,,,drive home,reconstructed,
-2026-08-13,,,115,slack,,,unaccounted,reconstructed,residual to 24h
-2026-08-14,,,360,sleep,,,sleep,reconstructed,flat 6h assumption
-2026-08-14,,,120,necessities,,,eating,reconstructed,
-2026-08-14,,,30,necessities,,,shower,reconstructed,
-2026-08-14,,,80,necessities,,,cleaning and cooking,reconstructed,
-2026-08-14,,,135,necessities,,,evening with wife,reconstructed,walk 45 + eat together 30 + relax 60
-2026-08-14,,,625,rest,,,day off,reconstructed,whole day treated as off; bucketed rest not slack
-2026-08-14,22:30,00:00,90,sleep,,,sleep,reconstructed,"first trailing block under the midnight-to-midnight rule; carved out of the rest total, not added to the day"
+﻿date,start,end,minutes,bucket,domain,project,activity,target,confidence,notes
+2026-08-11,,,360,sleep,,,sleep,,reconstructed,flat 6h assumption
+2026-08-11,,,120,necessities,,,eating,,reconstructed,includes daytime lunch break
+2026-08-11,,,30,necessities,,,shower,,reconstructed,
+2026-08-11,,,80,necessities,,,cleaning and cooking,,reconstructed,
+2026-08-11,,,40,necessities,,,wife transport,,reconstructed,20m each way on her work days
+2026-08-11,07:00,08:00,60,targeted_work,research,NSERC,brainstorm narrative,,reconstructed,planned 3h; only 1h real work
+2026-08-11,10:00,12:00,120,targeted_work,research,Throughline,analyze formative study,,reconstructed,
+2026-08-11,13:00,14:00,60,work,research,Throughline,async progress report for Jian,,reconstructed,replaced cancelled meeting
+2026-08-11,16:10,16:40,30,obligations,,,prep to leave,,reconstructed,
+2026-08-11,16:40,18:10,90,obligations,,,drive to clinic,,reconstructed,
+2026-08-11,18:10,18:40,30,obligations,health,,clinic appointment,,reconstructed,
+2026-08-11,18:40,19:00,20,obligations,,,transit buffer to exam,,reconstructed,
+2026-08-11,19:00,22:00,180,work,teaching,CS349,proctor final exam,,reconstructed,
+2026-08-11,22:00,22:30,30,work,teaching,CS349,wrap up after proctoring,,reconstructed,
+2026-08-11,22:30,00:00,90,obligations,,,drive home,,reconstructed,
+2026-08-11,,,100,slack,,,unaccounted,,reconstructed,residual to 24h; no evening-with-wife block - home past midnight
+2026-08-12,,,360,sleep,,,sleep,,reconstructed,flat 6h assumption
+2026-08-12,,,120,necessities,,,eating,,reconstructed,
+2026-08-12,,,30,necessities,,,shower,,reconstructed,
+2026-08-12,,,80,necessities,,,cleaning and cooking,,reconstructed,
+2026-08-12,,,40,necessities,,,wife transport,,reconstructed,
+2026-08-12,,,135,necessities,,,evening with wife,,reconstructed,walk 45 + eat together 30 + relax 60
+2026-08-12,07:30,08:00,30,obligations,,,prep to leave,,reconstructed,
+2026-08-12,08:00,09:30,90,obligations,,,drive to campus,,reconstructed,
+2026-08-12,09:30,10:00,30,obligations,,,buffer before marking,,reconstructed,
+2026-08-12,10:00,16:00,360,work,teaching,CS349,marking,,reconstructed,planned 4h; ran 6h - overran into afternoon project blocks
+2026-08-12,16:00,17:30,90,obligations,,,drive home and pick up wife,,reconstructed,
+2026-08-12,,,75,slack,,,unaccounted,,reconstructed,residual to 24h
+2026-08-13,,,360,sleep,,,sleep,,reconstructed,flat 6h assumption
+2026-08-13,,,120,necessities,,,eating,,reconstructed,
+2026-08-13,,,30,necessities,,,shower,,reconstructed,
+2026-08-13,,,80,necessities,,,cleaning and cooking,,reconstructed,
+2026-08-13,,,135,necessities,,,evening with wife,,reconstructed,walk 45 + eat together 30 + relax 60
+2026-08-13,,,120,obligations,,,shopping,,reconstructed,
+2026-08-13,14:00,15:00,60,work,research,Throughline,Marginalia meeting,,reconstructed,
+2026-08-13,,,60,work,research,Vibecoding,Selena meeting,,reconstructed,moved from Fri 14 in replan; original slot 09:00-10:00
+2026-08-13,,,90,work,research,WVisdom,lab meeting,,reconstructed,moved from Fri 14 in replan; original slot 13:30-15:00
+2026-08-13,15:00,15:50,50,targeted_work,research,Vibecoding,read related-works papers,,reconstructed,skimmed ~4 papers; zero write-ups
+2026-08-13,15:50,16:20,30,obligations,,,prep to leave,,reconstructed,
+2026-08-13,16:20,17:50,90,obligations,,,drive to clinic with wife,,reconstructed,
+2026-08-13,17:50,18:00,10,obligations,health,,wife doctor appointment,,reconstructed,
+2026-08-13,18:00,19:30,90,obligations,,,drive home,,reconstructed,
+2026-08-13,,,115,slack,,,unaccounted,,reconstructed,residual to 24h
+2026-08-14,,,360,sleep,,,sleep,,reconstructed,flat 6h assumption
+2026-08-14,,,120,necessities,,,eating,,reconstructed,
+2026-08-14,,,30,necessities,,,shower,,reconstructed,
+2026-08-14,,,80,necessities,,,cleaning and cooking,,reconstructed,
+2026-08-14,,,135,necessities,,,evening with wife,,reconstructed,walk 45 + eat together 30 + relax 60
+2026-08-14,,,625,rest,,,day off,,reconstructed,whole day treated as off; bucketed rest not slack
+2026-08-14,22:30,00:00,90,sleep,,,sleep,,reconstructed,"first trailing block under the midnight-to-midnight rule; carved out of the rest total, not added to the day"
+2026-08-15,00:00,05:30,330,sleep,,,sleep,,logged,leading block
+2026-08-15,05:30,06:15,45,necessities,,,wife prep and drop-off,,logged,
+2026-08-15,06:15,06:45,30,necessities,,,breakfast,,logged,football video on the side; eating dominant
+2026-08-15,06:45,07:15,30,slack,,,YouTube - football,,logged,second video back to back
+2026-08-15,07:15,07:45,30,necessities,,,dishes,,logged,audiobook on; see growth-log
+2026-08-15,07:45,08:33,48,slack,,,crashed on couch,,logged,"guess - 45-50min; 07:30 study cancelled, felt lethargic, started with waiting for coffee to drip. Drifted from there…"
+2026-08-15,08:33,10:33,120,work,personal,Planner,refine planner and build the log plan,,logged,can justify spending 2 hours on self-growth as work; growth ledger and the midnight-to-midnight sleep rule
+2026-08-15,10:33,12:00,87,slack,personal,Planner,keep building the planner,,logged,"same activity as the block before it, different character - his call. See parking-lot.md #2. Still credited in growth-log"
+2026-08-15,12:00,12:30,30,rest,,,"shave, wash face, drink water",,logged,
+2026-08-15,12:30,12:45,15,slack,,,QWAIYAT,,logged,
+2026-08-15,12:45,13:15,30,slack,personal,Planner,parking lot and clickable viz spec,,logged,"Still had thoughts bubbling from before, unable to switch context. Came back to fix it when it would have been wiser to work on real stuff instead"
+2026-08-15,13:15,14:15,60,work,personal,,build weekly schedule,,logged,
+2026-08-15,14:15,14:30,15,targeted_work,research,Throughline,analyze formative study,Finish wrapping up the formative study analysis,logged,
+2026-08-15,14:30,15:30,60,necessities,,,weekly call with Noah,,logged,"friend; standing ~1h weekly call, wasn't in the schedule - added going forward"
+2026-08-15,15:30,16:12,42,targeted_work,research,Throughline,analyze participant 2,Finish wrapping up the formative study analysis,logged,"cleaned the room while listening to the transcript - slower at both, but felt net more productive than either alone. Concurrent chores during targeted work, not leisure audio - see parking-lot.md #5"
+2026-08-15,16:12,17:00,48,targeted_work,research,Throughline,meta - interview technique reflection,Finish wrapping up the formative study analysis,logged,how he interviews and how to get better at it
+2026-08-15,17:00,18:17,77,targeted_work,research,Throughline,analyze participant 2,Finish wrapping up the formative study analysis,logged,same room-cleaning multitask as the 15:30 block - see parking-lot.md #5
+2026-08-15,18:17,18:42,25,necessities,,,pick up wife,,logged,
+2026-08-15,18:42,21:26,164,rest,,,evening with wife - eating and TV,,logged,called rest rather than the usual necessities baseline - his call for tonight
+2026-08-15,21:26,22:17,51,necessities,,,walk,,logged,"exercise; also a self-care/physical row in growth-log per the standing rule (walks/runs -> necessities, not obligations)"
+2026-08-15,22:17,22:30,13,necessities,,,meal prep for wife's tomorrow,,logged,cooking - same bucket as cleaning and cooking baseline; folded in a few min of bathroom/wind-down before bed
+2026-08-15,22:30,23:15,45,work,personal,Planner,update tracker design,,logged,wife was on a call so stayed up later than planned; spent the wait on viz.py instead of decompressing
+2026-08-15,23:15,00:00,45,sleep,,,sleep,,logged,trailing block; closes the day
+2026-08-16,00:00,05:30,330,sleep,,,sleep,,logged,leading block
+2026-08-16,05:30,06:10,40,necessities,,,wife prep and drop-off,,logged,
+2026-08-16,06:10,06:36,26,necessities,,,toilet and prepping for work,,logged,guess - ~26min
+2026-08-16,06:36,06:45,9,work,personal,Planner,day logger,,logged,
+2026-08-16,06:45,07:45,60,slack,,,TV and FIFA,,logged,eating rode along but not dominant
+2026-08-16,07:45,08:05,20,targeted_work,research,NSERC,cleaner plan/concept,Work the plan/concept into a cleaner picture,logged,
+2026-08-16,08:05,11:45,220,targeted_work,research,NSERC,presentation,Prep a slide: succinct and structured,logged,"Notion Task Tracker estimated this as ""prep slide"", 1h (13:00-14:00 UTC); took 3h40"
+2026-08-16,11:45,12:00,15,work,personal,Planner,logging + fixing logger,,logged,
+2026-08-16,12:00,12:20,20,targeted_work,research,Throughline,transcription,Finish wrapping up the formative study analysis,logged,
+2026-08-16,12:20,13:30,70,rest,,,rest - needed a break after Throughline,,logged,played FIFA and listened to Trevor Noah podcast; see growth-log
+2026-08-16,13:30,14:44,74,targeted_work,research,Throughline,formative study analysis - P03,Finish wrapping up the formative study analysis,logged,P03 done
+2026-08-16,14:44,16:10,86,targeted_work,research,Vibecoding,reading literature and organizing thoughts,Read related-works papers,logged,
+2026-08-16,16:10,17:00,50,work,personal,Planner,day-logger,,logged,reclassified from slack to work per his call - already had 7h targeted_work logged today; still procrastination-flavored (see growth-log)
+2026-08-16,17:00,18:30,90,necessities,,,cleaned room,,logged,
+2026-08-16,18:30,18:50,20,necessities,,,picked up wife,,logged,"guess - ""went up and picked up and returned by 6:50"", read as picking up wife"
+2026-08-16,18:50,19:15,25,necessities,,,help wife get ready for outing with friends,,logged,
+2026-08-16,19:15,19:35,20,obligations,,,phone call,,logged,"guess on bucket - call he ""had to"" make"
+2026-08-16,19:35,22:15,160,necessities,,,"cooked, dishes, cleaned bathroom, prep for wife's work tomorrow",,logged,
+2026-08-16,22:15,22:30,15,rest,,,rest,,logged,
+2026-08-16,22:30,23:15,45,rest,,,movie,,logged,guess on bucket - not specified whether alone or with wife
+2026-08-16,23:15,00:00,45,sleep,,,sleep,,logged,trailing block; closes the day
+2026-08-17,00:00,05:15,315,sleep,,,sleep,,logged,leading block
+2026-08-17,05:15,06:05,50,necessities,,,wife prep and drop-off,,logged,
+2026-08-17,06:05,06:30,25,targeted_work,research,Vibecoding,literature search,Read related-works papers,logged,
+2026-08-17,06:30,08:00,90,rest,,,Trevor Noah podcast + FIFA (rest),,logged,guess - split evenly at the middle; flag if the rest half was actually first/last
+2026-08-17,08:00,08:45,45,slack,,,Trevor Noah podcast + FIFA (slack),,logged,guess - split evenly at the middle; flag if the slack half was actually first/last
+2026-08-17,08:45,09:30,45,slack,,,football highlights and news,,logged,
+2026-08-17,09:30,10:00,30,necessities,,,shower + household chores,,logged,
+2026-08-17,10:00,11:00,60,obligations,,,meeting with dietician,,logged,
+2026-08-17,11:00,11:30,30,slack,,,researched fun places / gyms / swimming,,logged,
+2026-08-17,11:30,11:45,15,slack,,,clearing backed-up manga,,logged,
+2026-08-17,11:45,12:00,15,slack,,,FIFA,,logged,
+2026-08-17,12:00,13:00,60,slack,,,YouTube - Hank Green and Trevor Noah,,logged,
+2026-08-17,13:00,14:00,60,work,research,NSERC,meeting with WCC for NSERC scholarship,,logged,
+2026-08-17,14:00,14:15,15,slack,,,news and internet browsing,,logged,
+2026-08-17,14:15,15:02,47,slack,,,Trevor Noah stand-up,,logged,
+2026-08-17,15:02,15:15,13,slack,,,checking email and citizenship tracker,,logged,"#drift: wife called asking him to file an insurance claim -> opened email looking for it, got pulled into an unrelated email, then checked the citizenship-tracker portal; claim never filed"
+2026-08-17,15:15,15:30,15,slack,,,football news,,logged,
+2026-08-17,15:30,17:45,135,targeted_work,research,Throughline,formative study analysis,Finish wrapping up the formative study analysis,logged,
+2026-08-17,17:45,18:30,45,necessities,,,cleaning,,logged,
+2026-08-17,18:30,18:50,20,necessities,,,picking up wife,,logged,
+2026-08-17,18:50,19:30,40,obligations,,,"prepping to go out, filing insurance claim, misc errands",,logged,closes the #drift note from 15:02 - claim got filed
+2026-08-17,19:30,22:20,170,rest,,,drive with wife,,logged,"his call - deliberate outing, not the necessities time-with-wife default"
+2026-08-17,22:20,23:20,60,necessities,,,"ate dinner, watched something",,logged,
+2026-08-17,23:20,00:00,40,sleep,,,sleep,,logged,trailing block; closes the day
+2026-08-18,00:00,08:08,488,sleep,,,sleep,,reconstructed,leading block
+2026-08-18,08:08,08:48,40,necessities,,,bathroom and clean up,,reconstructed,
+2026-08-18,08:48,10:00,72,work,research,NSERC,prep for scholarship meeting,,reconstructed,
+2026-08-18,10:00,11:00,60,work,research,NSERC,NSERC scholarship meeting,,reconstructed,
+2026-08-18,11:00,11:30,30,obligations,,,insurance cleanup and dietician's note,,reconstructed,
+2026-08-18,11:30,14:20,170,rest,,,rest with wife,,reconstructed,
+2026-08-18,14:20,23:00,520,slack,,,rabbit hole,,reconstructed,
+2026-08-18,23:00,23:48,48,slack,,,football videos,,reconstructed,
+2026-08-18,23:48,00:00,12,sleep,,,sleep,,reconstructed,trailing block; closes the day
+2026-08-19,00:00,07:44,464,sleep,,,sleep,,logged,
+2026-08-19,07:44,08:15,31,rest,,,laid in bed,,logged,
+2026-08-19,08:15,08:47,32,necessities,,,bathroom and cleaning up,,logged,
+2026-08-19,08:47,09:17,30,slack,,,troubleshooting a Claude Code issue,,logged,"#drift: wanted to log the day -> Claude Code was misbehaving, spent time trying to fix it; logging never happened in this block"
+2026-08-19,09:17,09:37,20,necessities,,,wife wanted to spend time,,logged,
+2026-08-19,09:37,10:07,30,slack,,,looked into topic from conversation with wife,,logged,#drift: meant to get back to logging -> got pulled into researching whatever they had been discussing
+2026-08-19,10:07,10:12,5,slack,,,checked email for TAship status,,logged,#email-drift: opened email to check one specific thing
+2026-08-19,10:12,10:27,15,slack,,,read email about CSGSA presidency,,logged,"#email-drift: spotted while checking the TA email, read into it"
+2026-08-19,10:27,12:30,123,necessities,,,"wife time, including calling home and talking with parents",,logged,
+2026-08-19,12:30,13:09,39,targeted_work,research,Throughline,Throughline analysis (P07_Anchit recording review),Finish wrapping up the formative study analysis,reconstructed,Guardian tabs were a distraction within this block
+2026-08-19,13:09,13:48,39,slack,,,"NYT Connections, word lookups, r/soccer, citizenship tracker check, ""why is webpage called loading"" tangent",,reconstructed,
+2026-08-19,13:48,14:42,54,necessities,,,"grocery shopping (checked Flipp flyer, then went)",,reconstructed,
+2026-08-19,14:42,14:55,13,slack,,,"browsed Prime Video (The Mentalist) + Wikipedia on cast (Josh Randall, Claire Rankin)",,reconstructed,
+2026-08-19,14:55,15:23,28,targeted_work,research,Throughline,"continued Throughline analysis, using ChatGPT",Finish wrapping up the formative study analysis,reconstructed,
+2026-08-19,15:23,17:07,104,obligations,,,"ConvFork/Study9 study participation (Northeastern HAI lab) - scheduling, docs, Qualtrics survey, LinkedIn checks",,reconstructed,
+2026-08-19,17:07,17:42,35,necessities,,,"shower, getting ready to travel",,reconstructed,
+2026-08-19,17:42,18:00,18,rest,,,"eating, Veer Zaara in background",,reconstructed,evening with wife
+2026-08-19,18:00,18:20,20,rest,,,getting ready to leave,,reconstructed,evening with wife
+2026-08-19,18:20,19:05,45,rest,,,drive to Brantford,,reconstructed,evening with wife
+2026-08-19,19:05,20:54,109,rest,,,Costco + mall shopping,,reconstructed,evening with wife
+2026-08-19,20:54,21:39,45,rest,,,drive back from Brantford,,reconstructed,evening with wife
+2026-08-19,21:39,22:24,45,necessities,,,walk,,reconstructed,
+2026-08-19,22:24,22:44,20,necessities,,,hauling groceries in,,reconstructed,
+2026-08-19,22:44,00:00,76,sleep,,,sleep,,reconstructed,trailing block; closes the day
+2026-08-21,00:00,05:20,320,sleep,,,sleep,,reconstructed,leading block
+2026-08-21,05:20,05:50,30,necessities,,,"prep for day, prep for wife's work",,reconstructed,
+2026-08-21,05:50,06:03,13,necessities,,,drive (wife transport),,reconstructed,
+2026-08-21,06:03,07:00,57,slack,,,"breakfast, YouTube browsing, mail check, Bournemouth lookups",,reconstructed,
+2026-08-21,07:00,10:00,180,targeted_work,research,Vibecoding,CHI27 - reading related works,Read related-works papers,reconstructed,
+2026-08-21,10:00,11:00,60,targeted_work,research,Vibecoding,CHI27 - drafting related works,Draft related works,reconstructed,
+2026-08-21,11:00,11:51,51,work,,,meeting,,reconstructed,
+2026-08-21,11:51,12:11,20,targeted_work,research,Vibecoding,CHI submission via precision conference,Draft related works,reconstructed,
+2026-08-21,12:11,12:42,31,rest,,,deserved break after continuous work,,reconstructed,
+2026-08-21,12:42,14:06,84,slack,,,watched Sound of Music,,reconstructed,
+2026-08-21,14:06,14:55,49,obligations,,,"bank trip for loonies, started laundry",,reconstructed,
+2026-08-21,14:55,15:06,11,targeted_work,research,Vibecoding,revised CHI submission,Draft related works,reconstructed,
+2026-08-21,15:06,17:06,120,slack,,,"watched match, linedrying, other stuff",,reconstructed,
+2026-08-21,17:06,17:20,14,slack,,,watched Sound of Music again,,reconstructed,
+2026-08-21,17:20,18:20,60,necessities,,,"dishes, cooking, cleaned kitchen and room",,reconstructed,
+2026-08-21,18:20,18:40,20,necessities,,,away 20 min when wife called,,reconstructed,
+2026-08-21,18:40,19:20,40,necessities,,,"more dishes, more food, day prep",,reconstructed,
+2026-08-21,19:20,19:45,25,necessities,,,eating,,reconstructed,
+2026-08-21,19:45,20:10,25,rest,,,quality time with wife,,reconstructed,evening with wife
+2026-08-21,20:10,20:55,45,necessities,,,walk,,reconstructed,
+2026-08-21,20:55,21:05,10,necessities,,,shower,,reconstructed,
+2026-08-21,21:05,00:00,175,sleep,,,sleep,,reconstructed,trailing block; closes the day
+2026-08-20,00:00,05:20,320,sleep,,,sleep,,reconstructed,leading block
+2026-08-20,05:20,05:50,30,necessities,,,prep for wife's work,,reconstructed,
+2026-08-20,05:50,06:05,15,necessities,,,drive (wife transport),,reconstructed,
+2026-08-20,06:05,06:22,17,necessities,,,"morning routine, eating",,reconstructed,
+2026-08-20,06:22,06:59,37,targeted_work,research,Vibecoding,"setting up online work access (Claude Code), organizing reading list",Read related-works papers,reconstructed,
+2026-08-20,06:59,07:15,16,slack,,,Fantasy Premier League,,reconstructed,#drift: setting up work access/reading list -> pulled off by a messenger message or an open Claude thread
+2026-08-20,07:15,08:00,45,targeted_work,research,Throughline,continued - fetched ACM paper via proxy,Finish wrapping up the formative study analysis,reconstructed,
+2026-08-20,08:00,08:17,17,obligations,,,"shower, prep for travel",,reconstructed,
+2026-08-20,08:17,09:39,82,obligations,,,drive to college,,reconstructed,
+2026-08-20,09:39,09:49,10,obligations,,,"parking lot to lab, settle",,reconstructed,
+2026-08-20,09:49,11:00,71,targeted_work,research,Throughline,Throughline work,Finish wrapping up the formative study analysis,reconstructed,
+2026-08-20,11:00,12:15,75,obligations,,,user study (as participant),,reconstructed,ran a bit longer than the 11-12 slot
+2026-08-20,12:15,12:38,23,necessities,,,lunch with colleagues,,reconstructed,
+2026-08-20,12:38,13:00,22,slack,,,"waiting for Maria, fidgety, tried setting up markdown editor",,reconstructed,
+2026-08-20,13:00,14:00,60,work,,,meeting with Maria,,reconstructed,
+2026-08-20,14:00,14:45,45,obligations,,,continued talking with Maria (socializing),,reconstructed,
+2026-08-20,14:45,16:00,75,work,research,,prep + talked with Noah - research paper,,reconstructed,
+2026-08-20,16:00,18:10,130,obligations,,,"wrap-up/prep, drove back incl. gas fill",,reconstructed,
+2026-08-20,18:10,18:30,20,rest,,,home after drive,,reconstructed,
+2026-08-20,18:30,18:45,15,obligations,,,picked up wife,,reconstructed,
+2026-08-20,18:45,19:30,45,necessities,,,made food,,reconstructed,
+2026-08-20,19:30,19:51,21,necessities,,,ate,,reconstructed,
+2026-08-20,19:51,20:10,19,slack,,,brief YouTube,,reconstructed,
+2026-08-20,20:10,20:55,45,necessities,,,walk,,reconstructed,
+2026-08-20,20:55,23:05,130,rest,,,time with wife,,reconstructed,evening with wife
+2026-08-20,23:05,00:00,55,sleep,,,sleep,,reconstructed,trailing block; closes the day

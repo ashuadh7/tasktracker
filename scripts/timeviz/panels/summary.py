@@ -6,16 +6,24 @@ grow. Every row with a number beside it is clickable, which is what makes
 this an index rather than a readout.
 """
 
+from collections import namedtuple
+
 from matplotlib.patches import Rectangle
 
-from ..formats import MINUTES_PER_DAY, clock_hm, hm, wrap
+from ..formats import MINUTES_PER_DAY, clock_hm, hm, truncate, wrap
 from ..hits import BandHits
-from ..selection import BUCKET, GROWTH, Selection, shade_for
+from ..selection import BUCKET, GROWTH, TARGET, Selection, shade_for
 from ..theme import (BUCKET_COLOR, BUCKET_ORDER, CATEGORY_COLOR, GRID,
                      GROWTH_KEYS, GROWTH_MODES, INK, INK_2, MUTED, SLOTS,
                      SLOT_BUCKET, TIERS, UNLOGGED_COLOR, blend, target_hue,
                      target_muted)
 from .base import Panel
+
+# One completion-bar segment's click/hover geometry, plus enough of the
+# target it represents (project + name key it, window is what #29's click
+# needs) to answer a click without a second lookup.
+CompletionHit = namedtuple(
+    "CompletionHit", "x0 x1 y0 y1 tooltip project name window")
 
 
 class SummaryPanel(Panel):
@@ -29,22 +37,38 @@ class SummaryPanel(Panel):
     def hit(self, event):
         return self.hits.find(event.ydata)
 
+    def completion_at(self, event):
+        """Index into `_completion_hits` under the cursor, or None.
+
+        Needs x *and* y -- BandHits only resolves y, which is enough for the
+        bucket/growth rows below but not here, where several targets share
+        one row split by x."""
+        if event.xdata is None or event.ydata is None:
+            return None
+        for i, hit in enumerate(self._completion_hits):
+            if hit.x0 <= event.xdata < hit.x1 and hit.y0 <= event.ydata <= hit.y1:
+                return i
+        return None
+
     def hover_target(self, event):
         """(i, "target") for the completion segment under the cursor.
 
         Bucket/growth rows still have no hover -- click is how they've
         always worked -- so this only ever matches inside the completion
-        bars, which need x *and* y (BandHits only resolves y).
+        bars.
         """
-        if event.xdata is None or event.ydata is None:
-            return None
-        for i, (x0, x1, y0, y1, _) in enumerate(self._completion_hits):
-            if x0 <= event.xdata < x1 and y0 <= event.ydata <= y1:
-                return i, "target"
-        return None
+        i = self.completion_at(event)
+        return (i, "target") if i is not None else None
 
     def target_tooltip(self, i):
-        return self._completion_hits[i][4]
+        return self._completion_hits[i].tooltip
+
+    def target_key(self, i):
+        """(project, target name) -- what a click on segment `i` selects.
+        Identifies the target without relying on this list's index staying
+        stable across redraws."""
+        hit = self._completion_hits[i]
+        return hit.project, hit.name
 
     def draw(self, days, data, gdata, ledger, sel, mode):
         ax = self.ax
@@ -70,7 +94,7 @@ class SummaryPanel(Panel):
         picked = sel.buckets if sel else set()
 
         y = 0.988
-        y = self._draw_completion(ax, ledger, y)
+        y = self._draw_completion(ax, ledger, y, sel)
 
         if mode == "day":
             # n=1 breaks both halves of the usual line: "1 OF 1 DAYS LOGGED"
@@ -132,7 +156,7 @@ class SummaryPanel(Panel):
         self._draw_growth(ax, days, gdata, ledger, sel, y)
         self.tooltip_artist()
 
-    def _draw_completion(self, ax, ledger, y):
+    def _draw_completion(self, ax, ledger, y, sel):
         """Percent-complete per project, rolled up from targets.csv +
         progress-log.csv -- see model.py's `target_progress`.
 
@@ -141,8 +165,14 @@ class SummaryPanel(Panel):
         broken into one segment per target, sized by its hour estimate and
         coloured by `theme.target_hue` -- an ordinal ramp keyed to planning
         order (see that function's docstring). Hoverable for the per-target
-        breakdown; not clickable yet -- drilling in on click is a decision
-        for once this has proven worth having on screen.
+        breakdown; clicking a segment turns it into a real `Selection(TARGET,
+        ...)` (see selection.py) -- the same one bucket/growth clicks
+        produce, so the timeline and bars highlight it and the detail panel
+        lists its rows exactly like any other selection. This panel's own
+        addition is the matching segment's window and total-ever tagged
+        minutes, drawn beneath its bar -- see issue #29. Two facts side by
+        side, deliberately never a rate: minutes-per-percent-point is
+        exactly the correlation the progress ledger (#19) rejected.
         """
         self._completion_hits = []
         progress = ledger.target_progress()
@@ -166,10 +196,11 @@ class SummaryPanel(Panel):
                                    clip_on=False, color=UNLOGGED_COLOR))
 
             n = len(items)
-            last_drawn = max((i for i, (_, m, _) in enumerate(items) if m > 0),
+            last_drawn = max((i for i, (_, m, _, _) in enumerate(items) if m > 0),
                              default=-1)
             x = 0.0
-            for i, (name, mins, tpct) in enumerate(items):
+            matched = None
+            for i, (name, mins, tpct, window) in enumerate(items):
                 if mins <= 0:
                     continue  # unestimated - excluded from the rollup, not drawn
                 seg_x0 = x
@@ -187,10 +218,25 @@ class SummaryPanel(Panel):
                 ax.add_patch(Rectangle((seg_x0 + done_w, bar_bot),
                                        seg_w - done_w, bar_h,
                                        clip_on=False, color=muted))
-                self._completion_hits.append((
+                self._completion_hits.append(CompletionHit(
                     seg_x0, seg_x0 + seg_w, bar_bot, bar_top,
-                    f"{wrap(name)} ({hm(mins) or '0h00'})\n{tpct}% done"))
+                    f"{wrap(name)} ({hm(mins) or '0h00'})\n{tpct}% done",
+                    project, name, window))
+                if sel is not None and sel.kind == TARGET and sel.names[0] == name:
+                    matched = (name, tpct, window)
             y = bar_bot - 0.016
+
+            if matched:
+                name, tpct, window = matched
+                ax.text(0.02, y, truncate(name, 60), fontsize=8,
+                        color=INK_2, fontweight="bold")
+                y -= 0.019
+                planned = f"planned for {window}" if window else "no window set"
+                logged = ledger.target_minutes(name)
+                fact = (f"{planned}  ·  {hm(logged) or '0h00'} logged "
+                        f"toward it  ·  {tpct}% done")
+                ax.text(0.02, y, fact, fontsize=8, color=MUTED)
+                y -= 0.030
 
         y -= 0.014
         ax.plot([0, 1], [y, y], color=GRID, linewidth=0.8)

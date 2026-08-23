@@ -22,7 +22,7 @@ from matplotlib.widgets import Button
 from .formats import tooltip_text
 from .panels import (BarsPanel, DetailPanel, StripPanel, SummaryPanel,
                      TimelinePanel)
-from .selection import BUCKET, GROWTH, Selection
+from .selection import BUCKET, GROWTH, TARGET, Selection
 from .theme import INK, INK_2, SLOT_BUCKET, SURFACE, day_tag_colors
 from .window import Window
 
@@ -157,6 +157,11 @@ class Viz:
             self._apply_click(self._from_timeline(band),
                               band.row_id if band else None, shift)
         elif event.inaxes is self.side.ax:
+            idx = self.side.completion_at(event)
+            if idx is not None:
+                _, name = self.side.target_key(idx)
+                self._apply_click(Selection(TARGET, name), None, shift)
+                return
             band = self.side.hit(event)
             self._apply_click(band.key if band else None, None, shift)
 
@@ -211,7 +216,8 @@ class Viz:
         from matplotlib.backend_tools import Cursors
         cursor = Cursors.POINTER
         if (event.inaxes is self.side.ax and event.ydata is not None
-                and self.side.hit(event) is not None):
+                and (self.side.hit(event) is not None
+                     or self.side.completion_at(event) is not None)):
             cursor = Cursors.HAND
         self.fig.canvas.set_cursor(cursor)
         self._update_hover(event)
@@ -286,7 +292,9 @@ class Viz:
             self.strip.hide()
             self.detail.place([MAIN_L, BOTTOM, MAIN_W, 0.185])
         else:
-            top, hidden = ((self.bars, self.strip) if kind == BUCKET
+            # A target selection is log-sourced (see selection.py), so it
+            # gets the same top slot a bucket selection would.
+            top, hidden = ((self.bars, self.strip) if kind in (BUCKET, TARGET)
                            else (self.strip, self.bars))
             top.place([MAIN_L, 0.345, MAIN_W, 0.195])
             hidden.hide()

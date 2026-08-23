@@ -65,6 +65,13 @@ STACKABLE = {"necessities", "obligations"}
 
 MIDNIGHT = {"00:00", "24:00"}
 
+# The date the `target` tagging rule (a follow-up to issue #29) took effect.
+# Rows before this predate the column entirely and are exempt, the same
+# "new rules apply going forward" convention already used for the
+# midnight-crossing sleep rule (see ../CLAUDE.md) -- never rewritten in,
+# only required from here on.
+TARGET_TAG_STARTS = "2026-08-22"
+
 
 def to_minutes(hhmm):
     h, m = hhmm.split(":")
@@ -108,7 +115,7 @@ def sleep_slot(start, end):
     return "nap"
 
 
-def validate_time(path, known_projects, require_full_days):
+def validate_time(path, known_projects, target_project, require_full_days):
     """Returns (problems, warnings, n_rows, n_days, per_day_bucket, fields, rows)."""
     problems, warnings = [], []
     per_day = defaultdict(int)
@@ -116,6 +123,15 @@ def validate_time(path, known_projects, require_full_days):
     sleep_slots = defaultdict(list)
 
     fieldnames, rows = csv_io.read_rows(path)
+    # `target` is a forward-only addition -- a file written before it exists
+    # simply has no such column yet. Adding it to the fieldnames here (not to
+    # every row) is enough: normalize_file's rewrite below fills every row's
+    # value in with "" via `row.get(k, "")`, so the on-disk header catches up
+    # the next time this runs, without ever touching historical values.
+    if "target" not in fieldnames:
+        idx = fieldnames.index("activity") + 1 if "activity" in fieldnames \
+            else len(fieldnames)
+        fieldnames = fieldnames[:idx] + ["target"] + fieldnames[idx:]
 
     for n, row in enumerate(rows, start=2):  # +2: header is line 1
         where = f"{path.name} line {n}"
@@ -169,6 +185,28 @@ def validate_time(path, known_projects, require_full_days):
             msg = (f"{where} ({row['date']}): slack row has no named activity - "
                    f"what was that time spent on?")
             (problems if row["confidence"] == "logged" else warnings).append(msg)
+
+        # Same shape as the slack check above, for the same reason: naming
+        # the target is the point of the column existing at all. Only
+        # enforced from TARGET_TAG_STARTS -- rows before it predate the tag
+        # and are never required to have one (see that constant).
+        target = row.get("target", "").strip()
+        if row["bucket"] == "targeted_work":
+            if target:
+                if target not in target_project:
+                    problems.append(f"{where}: target {target!r} is not in "
+                                    f"targets.csv")
+                elif project and target_project[target] != project:
+                    problems.append(f"{where}: target {target!r} belongs to "
+                                    f"project {target_project[target]!r}, "
+                                    f"not {project!r}")
+            elif row["date"] >= TARGET_TAG_STARTS:
+                msg = (f"{where} ({row['date']}): targeted_work row has no "
+                       f"target tag - which targets.csv item was this for?")
+                (problems if row["confidence"] == "logged" else warnings).append(msg)
+        elif target:
+            problems.append(f"{where}: target tag set on a {row['bucket']!r} "
+                            f"row - only targeted_work rows can be tagged")
 
     # A calendar day opens with at most one sleep block and closes with at
     # most one. More than that means a night got split wrong.
@@ -367,8 +405,17 @@ def validate_progress(known_targets):
 def main():
     known_projects = load_projects()
 
-    sealed = validate_time(SEALED_FILE, known_projects, require_full_days=True)
-    opened = validate_time(OPEN_FILE, known_projects, require_full_days=False)
+    # Needed before validate_time so a targeted_work row's `target` tag can
+    # be checked against both existence and project -- moved ahead of it for
+    # that reason.
+    targets = validate_targets(known_projects)
+    target_project = {r["target"].strip(): r["project"].strip()
+                      for r in targets[3] if r["target"].strip()}
+
+    sealed = validate_time(SEALED_FILE, known_projects, target_project,
+                           require_full_days=True)
+    opened = validate_time(OPEN_FILE, known_projects, target_project,
+                           require_full_days=False)
 
     # The time log's bucket totals, across both files, are what the growth
     # ledger's echoed buckets are checked against.
@@ -379,7 +426,6 @@ def main():
     open_dates = {d for d, _ in opened[4]}
 
     growth = validate_growth(per_day_bucket, open_dates)
-    targets = validate_targets(known_projects)
     progress = validate_progress(targets[1])
 
     problems = sealed[0] + opened[0] + growth[0] + targets[0] + progress[0]

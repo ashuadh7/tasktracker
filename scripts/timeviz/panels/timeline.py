@@ -10,6 +10,7 @@ import pandas as pd
 
 from ..formats import ampm, hm, to_hours
 from ..hits import LaneHits
+from ..selection import TARGET
 from ..theme import (BASELINE, BUCKET_COLOR, CATEGORY_COLOR, GRID, INK_2,
                      MUTED, SURFACE, blend, ink_on)
 from .base import Panel
@@ -54,8 +55,14 @@ class TimelinePanel(Panel):
 
         # Each block in its own bucket/category colour, always -- a
         # multi-name selection (work + targeted_work) needs to stay
-        # distinguishable, and at n=1 there's no selection to narrow to.
+        # distinguishable, and at n=1 there's no selection to narrow to. A
+        # target selection colours by the row's own target (its
+        # completion-index hue), not just the first name selected, for the
+        # same reason -- several targets picked at once still need to read
+        # apart.
         def color_of(row):
+            if source == "log" and sel is not None and sel.kind == TARGET:
+                return ledger.target_hue(row["target"]) or BUCKET_COLOR["targeted_work"]
             return (BUCKET_COLOR[row["bucket"]] if source == "log"
                     else CATEGORY_COLOR[row["category"]])
 
@@ -113,6 +120,24 @@ class TimelinePanel(Panel):
                     ax.text((a + b) / 2, i, hm(row["minutes"]), ha="center",
                             va="center", fontsize=7, color=ink_on(color),
                             zorder=4)
+
+        # A target selection also gets what was allocated for it, from
+        # plan.csv -- a dashed outline in the same hue as the actual blocks,
+        # drawn over them rather than instead of them. Where the two agree
+        # the outline just traces the solid block; where they don't, the
+        # outline stands alone and the gap between "planned here" and
+        # "actually happened there" is the whole point of drawing it.
+        if sel is not None and sel.kind == TARGET:
+            planned = ledger.planned_for(sel.names, days)
+            for i, day in enumerate(days):
+                for _, prow in planned[planned["date"] == pd.Timestamp(day)].iterrows():
+                    a, b = to_hours(prow["start"]), to_hours(prow["end"])
+                    if b <= a:
+                        b = 24.0
+                    hue = ledger.target_hue(prow["target"]) or BUCKET_COLOR["targeted_work"]
+                    ax.barh(i, b - a, left=a, height=0.55, facecolor="none",
+                            edgecolor=hue, linewidth=1.6, linestyle=(0, (3, 2)),
+                            zorder=3.5)
 
         # The day's full total for this selection -- placed blocks plus any
         # untimed minutes -- so it agrees with the side panel, which is the
