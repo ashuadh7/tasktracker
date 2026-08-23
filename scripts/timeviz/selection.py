@@ -81,23 +81,28 @@ class Selection:
             return BUCKET_COLOR["targeted_work"]
         return CATEGORY_COLOR[self.names[0]]
 
-    def color_for(self, name):
+    def color_for(self, name, ledger=None):
         """Same idea as `color`, but per name -- what a panel drawing every
-        row in the selection colours each one with. A target selection's
-        rows are still bucket/category-coloured by their own bucket
-        (`row["bucket"]`, always `targeted_work`), not by this -- this exists
-        for callers that only have the *selected* name, like the swatch next
-        to a heading."""
+        row in the selection colours each one with. A target's own colour is
+        its completion-index hue (`ledger.target_hue`), the same one its
+        segment is drawn in, so a selection reads as a continuation of what
+        was clicked rather than falling back to a generic bucket blue --
+        `ledger` is optional only because not every caller has one at hand,
+        and falls back to that generic blue when omitted or the target isn't
+        active."""
         if self.is_bucket:
             return BUCKET_COLOR[name]
         if self.kind == TARGET:
-            return BUCKET_COLOR["targeted_work"]
+            hue = ledger.target_hue(name) if ledger is not None else None
+            return hue or BUCKET_COLOR["targeted_work"]
         return CATEGORY_COLOR[name]
 
     @property
     def heading(self):
         if len(self.names) > 1:
             sep = " + "
+            if self.kind == TARGET:
+                return sep.join(self.names)
             return sep.join(n.replace("_", " ").upper() for n in self.names)
         if self.is_bucket:
             return self.names[0].replace("_", " ").upper()

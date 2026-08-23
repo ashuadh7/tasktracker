@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .theme import BUCKET_ORDER, GROWTH_KEYS, SLOTS
+from .theme import BUCKET_ORDER, GROWTH_KEYS, SLOTS, target_hue
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import csv_io  # noqa: E402  -- sibling of the package, not inside it
@@ -254,6 +254,33 @@ class Ledger:
             out[project] = {"rollup": weighted / weight, "weight": weight,
                             "items": items}
         return out
+
+    def target_hue(self, target):
+        """The colour `theme.target_hue` gave this target in the completion
+        index -- reused so a target selection highlights in the colour it
+        was clicked in, not a generic bucket blue. Same ordinal position
+        `target_progress` computed it from, so the two never disagree.
+        None for a target that isn't active (nothing to match against).
+        """
+        for info in self.target_progress().values():
+            names = [name for name, _, _, _ in info["items"]]
+            if target in names:
+                return target_hue(names.index(target), len(names))
+        return None
+
+    def planned_for(self, targets, days):
+        """plan.csv rows toward any of `targets`, within `days` -- the
+        allocated-time counterpart to a target selection's actual rows (see
+        Selection.rows), for drawing what was planned alongside what
+        happened. Rows with no start/end can't be placed on a clock and are
+        silently skipped, same as an untimed log row.
+        """
+        if self.plan.empty or "target" not in self.plan.columns:
+            return self.plan.iloc[0:0]
+        stamps = pd.DatetimeIndex(days)
+        return self.plan[self.plan["date"].isin(stamps)
+                         & self.plan["target"].isin(targets)
+                         & (self.plan["start"] != "") & (self.plan["end"] != "")]
 
     def target_minutes(self, target):
         """Minutes logged with this exact `target` tag -- see #29's

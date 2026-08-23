@@ -73,7 +73,7 @@ class DetailPanel(Panel):
         growth = sel.is_growth
         frame = sel.rows(ledger, days)
         heading = sel.heading
-        colors = [sel.color_for(n) for n in sel.names]
+        colors = [sel.color_for(n, ledger) for n in sel.names]
         total = int(frame["minutes"].sum()) if not frame.empty else 0
         n_days = frame["date"].nunique() if not frame.empty else 0
 
@@ -91,18 +91,21 @@ class DetailPanel(Panel):
                 f"{'' if n_days == 1 else 's'}",
                 fontsize=8.5, color=MUTED)
 
-        if sel.kind == TARGET:
+        if sel.kind == TARGET and len(sel.names) == 1:
             # The row list below is windowed to whatever's on screen, same as
             # any other selection -- this is the one line that isn't: the
             # window a target was actually planned for, and how much has
             # ever been tagged to it, on both sides of the window's edges.
+            # Skipped for a multi-target selection -- "planned for" and the
+            # all-time total stop being one fact once more than one target's
+            # numbers would have to share the line.
             trow = ledger.targets[ledger.targets["target"] == sel.names[0]]
             window = trow.iloc[0]["window"] if not trow.empty else ""
             planned = f"planned for {window}" if window else "no window set"
             total_ever = ledger.target_minutes(sel.names[0])
             ax.text(0, 0.865,
                     f"{planned}  ·  {hm(total_ever) or '0h00'} logged "
-                    f"toward it in total",
+                    f"toward it in total  ·  dashed = planned, solid = actual",
                     fontsize=8.5, color=MUTED)
 
         if frame.empty:
@@ -124,13 +127,15 @@ class DetailPanel(Panel):
                 break
             if row_id == self.selected_row:
                 # The row a click resolved to -- behind the text, not on
-                # top. Its own bucket/category colour, not the selection's:
-                # with several names selected they don't share one colour.
-                # A target selection's rows are log rows, so they're coloured
-                # by bucket too -- always `targeted_work`, since that's the
-                # only bucket a target can be logged under.
-                row_color = (CATEGORY_COLOR[row["category"]] if sel.is_growth
-                            else BUCKET_COLOR[row["bucket"]])
+                # top. Its own bucket/category/target colour, not the
+                # selection's: with several names selected they don't share
+                # one colour.
+                if sel.kind == TARGET:
+                    row_color = ledger.target_hue(row["target"]) or BUCKET_COLOR[row["bucket"]]
+                elif sel.is_growth:
+                    row_color = CATEGORY_COLOR[row["category"]]
+                else:
+                    row_color = BUCKET_COLOR[row["bucket"]]
                 ax.add_patch(Rectangle(
                     (0, y - need + 0.018), 1, need, color=blend(row_color, 0.85),
                     zorder=0, clip_on=False))
