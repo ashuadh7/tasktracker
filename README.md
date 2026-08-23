@@ -70,7 +70,9 @@ This was one of two arrangements tried behind a toggle in issue #5 — bars-on-t
 | `targets.csv` | Lookup for planned work items — one row per item, with its hour estimate. |
 | `progress-log.csv` | The progress ledger — a percent-complete trail per target. Append-only. |
 
-Plan vs. actual is a join on `date` + `project`. Keeping them in separate files means the plan stays frozen as written — you can see what you *believed* on Sunday, not a version edited to match reality.
+Plan vs. actual is a join on `date` + `project`, or — where both sides have one — the exact `target` column both `plan.csv` and `time-log.csv` carry (see below). Keeping them in separate files means the plan stays frozen as written — you can see what you *believed* on Sunday, not a version edited to match reality.
+
+`plan.csv` columns: `date,start,end,minutes,bucket,domain,project,activity,target,notes`. `start`/`end` are real `HH:MM` clock times (not text buried in `notes`) — what lets the visualizer draw a planned block on the timeline next to whatever actually happened. `target` is the exact `targets.csv` `target` string this planned block was toward, filled in during planning the same way `time-log.csv`'s `target` is filled in during logging (see `logging-protocol.md`) — blank where a block doesn't map to any current target. Both columns are forward-compatible additions: a `plan.csv` row from before they existed just has them blank.
 
 ## The progress ledger
 
