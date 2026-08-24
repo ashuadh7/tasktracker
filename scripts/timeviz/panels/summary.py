@@ -94,7 +94,7 @@ class SummaryPanel(Panel):
         picked = sel.buckets if sel else set()
 
         y = 0.988
-        y = self._draw_completion(ax, ledger, y, sel)
+        y = self._draw_completion(ax, ledger, days, y, sel)
 
         if mode == "day":
             # n=1 breaks both halves of the usual line: "1 OF 1 DAYS LOGGED"
@@ -156,26 +156,29 @@ class SummaryPanel(Panel):
         self._draw_growth(ax, days, gdata, ledger, sel, y)
         self.tooltip_artist()
 
-    def _draw_completion(self, ax, ledger, y, sel):
+    def _draw_completion(self, ax, ledger, days, y, sel):
         """Percent-complete per project, rolled up from targets.csv +
         progress-log.csv -- see model.py's `target_progress`.
 
-        Not windowed by day/week/month, on purpose: a target's percent is a
-        current state, not a per-range quantity. The rollup bar is itself
-        broken into one segment per target, sized by its hour estimate and
-        coloured by `theme.target_hue` -- an ordinal ramp keyed to planning
-        order (see that function's docstring). Hoverable for the per-target
-        breakdown; clicking a segment turns it into a real `Selection(TARGET,
-        ...)` (see selection.py) -- the same one bucket/growth clicks
-        produce, so the timeline and bars highlight it and the detail panel
-        lists its rows exactly like any other selection. This panel's own
-        addition is the matching segment's window and total-ever tagged
-        minutes, drawn beneath its bar -- see issue #29. Two facts side by
-        side, deliberately never a rate: minutes-per-percent-point is
-        exactly the correlation the progress ledger (#19) rejected.
+        Scoped to `days`: only targets whose `window` overlaps what's on
+        screen are rolled up, so a week view shows that week's targets and a
+        month view shows the union of every window inside it, rather than
+        every still-active target regardless of when it was planned. The
+        rollup bar is itself broken into one segment per target, sized by
+        its hour estimate and coloured by `theme.target_hue` -- an ordinal
+        ramp keyed to planning order (see that function's docstring).
+        Hoverable for the per-target breakdown; clicking a segment turns it
+        into a real `Selection(TARGET, ...)` (see selection.py) -- the same
+        one bucket/growth clicks produce, so the timeline and bars highlight
+        it and the detail panel lists its rows exactly like any other
+        selection. This panel's own addition is the matching segment's
+        window and total-ever tagged minutes, drawn beneath its bar -- see
+        issue #29. Two facts side by side, deliberately never a rate:
+        minutes-per-percent-point is exactly the correlation the progress
+        ledger (#19) rejected.
         """
         self._completion_hits = []
-        progress = ledger.target_progress()
+        progress = ledger.target_progress(days)
         if not progress:
             return y  # nothing active - the rest of the index just starts higher
 
