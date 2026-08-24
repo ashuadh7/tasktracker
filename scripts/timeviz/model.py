@@ -6,6 +6,8 @@ than visible -- which slot a sleep row belongs in, whether a day's minutes add
 to 1440 -- can be exercised without opening a window.
 """
 
+import calendar
+import datetime as dt
 import sys
 from pathlib import Path
 
@@ -27,6 +29,54 @@ TARGETS_FILE = DATA / "targets.csv"
 PROGRESS_FILE = DATA / "progress-log.csv"
 
 MIDNIGHT = {"00:00", "24:00"}
+
+MONTH_ABBR = {name: i for i, name in enumerate(calendar.month_abbr) if name}
+
+
+def parse_window(window, ref_year):
+    """'Aug 15-21' -> (date(ref_year, 8, 15), date(ref_year, 8, 21)), the
+    inclusive span a target's `window` column names. Handles a window that
+    crosses months ('Aug 28-Sep 3') by reading the month off each side
+    separately; a bare day on the right ('Aug 15-21') reuses the left side's
+    month. `ref_year` comes from whatever range is on screen -- the column
+    itself carries no year, and a target's window is always near the date
+    it was planned, so the viewed year is the only sane guess.
+
+    Returns None for blank or unparseable text, so a target with a window
+    that doesn't fit this shape stays visible rather than silently vanishing
+    from the completion panel.
+    """
+    window = (window or "").strip()
+    if not window or "-" not in window:
+        return None
+    left, right = window.split("-", 1)
+    left_parts, right_parts = left.split(), right.split()
+    try:
+        start_month = MONTH_ABBR[left_parts[0]]
+        start_day = int(left_parts[1])
+        if len(right_parts) == 2:
+            end_month = MONTH_ABBR[right_parts[0]]
+            end_day = int(right_parts[1])
+        else:
+            end_month = start_month
+            end_day = int(right_parts[0])
+        start = dt.date(ref_year, start_month, start_day)
+        end_year = ref_year + 1 if end_month < start_month else ref_year
+        end = dt.date(end_year, end_month, end_day)
+        return start, end
+    except (KeyError, IndexError, ValueError):
+        return None
+
+
+def window_overlaps(window, view_start, view_end, ref_year):
+    """Whether a target's `window` text names a span touching
+    [view_start, view_end]. An unparseable/blank window overlaps everything
+    -- see `parse_window`."""
+    parsed = parse_window(window, ref_year)
+    if parsed is None:
+        return True
+    start, end = parsed
+    return start <= view_end and end >= view_start
 
 
 def slot_of(row):
@@ -213,17 +263,24 @@ class Ledger:
             & (self.plan["bucket"] == bucket)
         ]["minutes"].sum()
 
-    def target_progress(self):
+    def target_progress(self, days=None):
         """project -> {"rollup": pct, "weight": minutes,
                         "items": [(target, minutes, percent), ...]}
 
-        Not scoped to a window -- a target lives across many days and its
-        percent is a current state, not a per-day quantity, so this always
-        reflects the open set regardless of what's on screen. The rollup is
-        hours-weighted: a target with no progress-log.csv entry yet counts as
-        0%, and a target with a 0-minute estimate drops out on its own (zero
-        weight contributes to neither side of the ratio) but stays in
-        `items` so a view can still list it.
+        `status` (active/done/dropped) is the lifecycle filter and always
+        applies. `days`, when given, additionally scopes to targets whose
+        `window` overlaps the range on screen -- so a week view shows that
+        week's targets and a month view shows the union of every window
+        inside it, instead of every still-active target regardless of when
+        it was planned. Pass None (the default) for the unscoped, all-time
+        set -- `target_hue` needs that so a target keeps its colour even
+        when it's not the one currently on screen. A blank or unparseable
+        `window` is treated as always in range rather than dropped -- see
+        `window_overlaps`. The rollup is hours-weighted: a target with no
+        progress-log.csv entry yet counts as 0%, and a target with a
+        0-minute estimate drops out on its own (zero weight contributes to
+        neither side of the ratio) but stays in `items` so a view can still
+        list it.
 
         `items` keeps targets.csv's own row order per project -- the order
         the targets were listed when the goal was planned -- because that
@@ -234,6 +291,10 @@ class Ledger:
         if self.targets.empty:
             return {}
         active = self.targets[self.targets["status"] == "active"]
+        if days is not None and not active.empty:
+            view_start, view_end = min(days), max(days)
+            active = active[active["window"].apply(
+                lambda w: window_overlaps(w, view_start, view_end, view_start.year))]
         if active.empty:
             return {}
 
