@@ -13,8 +13,8 @@ import pandas as pd
 from matplotlib.patches import Patch
 
 from ..selection import shade_for
-from ..theme import (CATEGORY_COLOR, CATEGORY_TIER, GROWTH_COLOR, GROWTH_KEYS,
-                     GROWTH_MODES, INK_2, MUTED, SURFACE, TIERS, ink_on)
+from ..theme import (CATEGORIES, CATEGORY_COLOR, GROWTH_COLOR, GROWTH_KEYS,
+                     GROWTH_MODES, INK_2, MUTED, SURFACE, TIER_ORDER, ink_on)
 from .base import LEGEND_GAP, LEGEND_GAP_TIGHT, StackedPanel
 
 
@@ -51,11 +51,11 @@ class StripPanel(StackedPanel):
 
         ax.set_ylabel("growth", fontsize=9, color=MUTED, labelpad=8)
 
-        # Nine categories is too many to legend unconditionally, so only the
-        # ones actually in this window get named.
-        present = [c for _, cats in TIERS for c, _ in cats
-                   if any(gdata[f"{CATEGORY_TIER[c]}|{c}|{m}"].sum()
-                          for m in GROWTH_MODES)]
+        # Thirteen categories is too many to legend unconditionally, so only
+        # the ones actually in this window get named -- under either tier.
+        present = [c for c, _ in CATEGORIES
+                   if any(gdata[f"{t}|{c}|{m}"].sum()
+                          for t in TIER_ORDER for m in GROWTH_MODES)]
         handles = [Patch(facecolor=shade_for(sel, CATEGORY_COLOR[c],
                                              c in picked), label=c)
                    for c in present]

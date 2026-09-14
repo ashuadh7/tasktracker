@@ -103,7 +103,7 @@ date,start,end,minutes,bucket,domain,project,activity,target,confidence,notes
 - **start**, **end** — `HH:MM` 24h. Leave blank for anything non-contiguous (eating, cleaning). Blank is fine and expected.
 - **minutes** — integer. The only field every calculation reads. Never "1 hr 30 mins".
 - **bucket** — the analysis axis. **Fixed vocabulary, never extend casually** (see below).
-- **domain** — `research` / `teaching` / `personal` / `health` / `admin`. Blank for sleep, necessities, slack.
+- **domain** — `research` / `teaching` / `personal` / `career` / `health` / `admin`. Blank for sleep, necessities, slack.
 - **project** — free string, validated against `projects.csv`. Blank when not project-work.
 - **activity** — what you actually did, **short — a label, not a sentence**. `formative study analysis`, not `continued working through the formative study analysis, focusing on P07's transcript`. The elaboration belongs in `notes`; see there for why this split matters more than it looks.
 - **target** — which `targets.csv` row this was actually toward, exact string match. Only meaningful on a `targeted_work` row; blank everywhere else. This is the join `activity` free text can't safely be, because `activity` is a label like `P03` or `transcription` with nothing pointing at a specific planned item — see the completion index's click-through, which sums this column rather than guessing from `activity`. **Forward-only**: rows before 2026-08-22 predate the tag and stay blank, same as the midnight-crossing sleep rule predating Aug 15. `check.py` requires it on any `targeted_work` row dated on or after that, the same way it requires a named `activity` on `slack`.
@@ -133,19 +133,23 @@ Every date's rows should sum to **1440 minutes**. Slack is what's left after eve
 An audiobook during the dishes is `necessities / dishes` in the time log **and** `audio / audiobook` here. No double-counting problem, because only one of the two files is required to sum to 1440. This one is never reconciled against anything.
 
 ```
-date,start,end,minutes,tier,category,mode,bucket,source,activity,confidence,notes
+date,start,end,minutes,tier,category,mode,bucket,source,activity,target,confidence,notes
 ```
 
-| Tier | Categories |
+| Field | Vocabulary |
 |---|---|
-| `reading` | `fiction` · `non-fiction` · `article` |
-| `audio` | `podcast` · `audiobook` |
-| `self-care` | `self-improvement` · `hobby` · `physical` · `mental` |
+| `tier` | `personal` · `professional` |
+| `category` | `fiction` · `non-fiction` · `article` · `podcast` · `audiobook` · `self-improvement` · `hobby` · `physical` · `mental` · `film` · `series` · `game` · `networking` |
 
-Same discipline as buckets: the **tier** is the comparison axis that has to mean the same thing in 2029, the category is the useful detail underneath. `article` means genuinely well-written long-form, not hot takes. `mental` covers diary, note-keeping, rambling at an AI to think something through. `physical` is exercise, walks, runs.
+The two are independent: **tier says whose growth it is, category says what kind of thing it was.** Any category can sit under either tier — a research podcast is `professional / podcast`, a novel is `personal / fiction`. The rule for the tier is *follow the project*: if the same block in the time log is under a research project or `Professional development`, the growth row is `professional`; otherwise `personal`. No judgment call at logging time.
 
-Three fields carry the design:
+Same discipline as buckets: the tier is the comparison axis that has to mean the same thing in 2029, the category is the useful detail underneath. `article` means genuinely well-written long-form, not hot takes. `mental` covers diary, note-keeping, rambling at an AI to think something through. `physical` is exercise, walks, runs. `film` / `series` / `game` are the curated kind — picked from a list, not whatever autoplayed; drift is `slack` in the time log with no growth row at all, and that absence is the point.
 
+Before 2026-09-14 the tier held the kind (`reading` / `audio` / `self-care` / `networking`) and the category sat under it. Every old category maps to exactly one new tier, so the old rows were relabeled in place — a lossless transformation is the one case where rewriting history is fine.
+
+Four fields carry the design:
+
+- **`target`** — which `targets.csv` row this was toward, exact string match, same as the time log's `target`. This is how a target under `Personal development` ("finish audiobook X", "one film from the list this week") gets checked: against this ledger, not the time log, because the minutes it cares about are `rest` and `necessities` minutes the time log deliberately can't tag. Optional — a walk is still a walk without one. Forward-only from 2026-09-14; rows before it are blank.
 - **`mode`** — `concurrent` (rode along with something else, cost zero extra minutes) or `dedicated` (this *was* the activity). Without it the ledger says "3h of growth" and you can't tell what was free.
 - **`bucket`** — echoes what the time log called the same block. This is the interesting one, below.
 - **`source`** — the actual book, podcast, or article. What makes this worth reading back in three years instead of just a number.

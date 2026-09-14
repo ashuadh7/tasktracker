@@ -195,7 +195,7 @@ Leave the day out of `time-log.csv` entirely. It renders as a grey unlogged bar,
 | Eating, shower, cooking, cleaning | `necessities` | |
 | Time with wife | `necessities` | |
 | Naps | `sleep` | |
-| Exercise, walks, runs | `necessities` | also a `self-care / physical` row in the growth ledger |
+| Exercise, walks, runs | `necessities` | also a `personal / physical` row in the growth ledger |
 | Deliberate day off | `rest` | never `slack` |
 | Drift, scrolling, gaming | `slack` | name the activity |
 
@@ -217,21 +217,22 @@ Two things at once → the dominant one wins. No double counting; the day must s
 The time log answers *where did the day go*. `growth-log.csv` answers *what was he putting into himself*. Same minutes, different question, so it never touches the 1440 arithmetic.
 
 ```
-date,start,end,minutes,tier,category,mode,bucket,source,activity,confidence,notes
+date,start,end,minutes,tier,category,mode,bucket,source,activity,target,confidence,notes
 ```
 
-| Tier | Categories |
+| Field | Vocabulary |
 |---|---|
-| `reading` | `fiction` · `non-fiction` · `article` |
-| `audio` | `podcast` · `audiobook` |
-| `self-care` | `self-improvement` · `hobby` · `physical` · `mental` |
-| `networking` | `networking` (single category for now — split later if instances show a real pattern, e.g. by relationship type) |
+| `tier` | `personal` · `professional` |
+| `category` | `fiction` · `non-fiction` · `article` · `podcast` · `audiobook` · `self-improvement` · `hobby` · `physical` · `mental` · `film` · `series` · `game` · `networking` |
 
+Tier and category are independent. **Tier follows the project:** if the same block in the time log is under a research project or `Professional development`, the growth row is `professional`; otherwise `personal`. Don't deliberate — apply the rule. A career book is `professional / non-fiction`; the same book read for pleasure is `personal / non-fiction`, and the time-log row tells you which.
+
+- **`target`** — which `targets.csv` row this was toward, when one exists. This is how a `Personal development` target ("30 min reading daily", "one film from the list", "the Think Fast Talk Smart episodes this week") is checked — against this ledger, since the time it lives in is `rest` and `necessities`, which the time log deliberately can't tag. Same probe-now rule as `targeted_work`: if a target for it is in `targets.csv` for the window, fill it in the same pass; blank is fine when nothing fits. Forward-only from 2026-09-14.
 - **`mode`** — `concurrent` if it rode along with something else (audiobook over the dishes), `dedicated` if it *was* the activity.
 - **`bucket`** — what the time log called that same block. `necessities`, `slack`, `work`, whatever it actually was.
 - **`source`** — the book, podcast, or article by name. Worth asking for; it's what makes the ledger readable years later.
 
-**When to write a row.** Any time he mentions an audiobook, podcast, novel, well-written article, exercise, hobby-building, journalling, or a long think-it-through session. He will usually mention these in passing while describing something else — *"did the dishes and listened to my audiobook"* is one time-log row and one growth row.
+**When to write a row.** Any time he mentions an audiobook, podcast, novel, well-written article, exercise, hobby-building, journalling, a long think-it-through session, or a film / series / game that came off his curated list (random autoplay gets no row — that's the difference between the two). He will usually mention these in passing while describing something else — *"did the dishes and listened to my audiobook"* is one time-log row and one growth row.
 
 **Don't ask about it separately.** No "did you listen to anything today?" pass. It rides on the dump he was already giving.
 

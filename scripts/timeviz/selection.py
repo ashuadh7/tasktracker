@@ -23,8 +23,7 @@ with that one bucket, rather than duplicating the bucket branch.
 
 import pandas as pd
 
-from .theme import (BUCKET_COLOR, BUCKET_ORDER, CATEGORY_COLOR, CATEGORY_TIER,
-                    blend)
+from .theme import BUCKET_COLOR, BUCKET_ORDER, CATEGORY_COLOR, blend
 
 BUCKET = "bucket"
 GROWTH = "growth"
@@ -111,7 +110,9 @@ class Selection:
             # forcing it to caps like a bucket/category would read as
             # shouting a whole sentence.
             return self.names[0]
-        return f"{CATEGORY_TIER[self.names[0]].upper()} · {self.names[0].upper()}"
+        # A category can sit under either tier, so the title is just the
+        # category; the panel underneath shows which tier each row was.
+        return self.names[0].upper()
 
     @property
     def source(self):
