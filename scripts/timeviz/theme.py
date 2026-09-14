@@ -41,24 +41,20 @@ SLOTS = [
 ]
 SLOT_BUCKET = {s: ("sleep" if s.startswith("sleep_") else s) for s in SLOTS}
 
-# Growth ledger. Each category carries its own colour, related within a tier
-# but distinguishable -- so the strip reads as nine nameable things rather
-# than three blocks you have to hover to identify.
-TIERS = [
-    ("reading", [("fiction", "#4F6F8F"),
-                 ("non-fiction", "#7895AE"),
-                 ("article", "#A9BDCD")]),
-    ("audio", [("audiobook", "#498D84"),
-               ("podcast", "#95B2AE")]),
-    ("self-care", [("self-improvement", "#665393"),
-                   ("hobby", "#A9A2B9"),
-                   ("physical", "#4F7E4E"),
-                   ("mental", "#93AA92")]),
-    ("networking", [("networking", "#A6702F")]),
+# Growth ledger. `tier` is whose growth it is and `category` what kind of
+# thing it was; the two are independent, so any category can sit under either
+# tier and the colour follows the category. Related kinds share a hue family,
+# so the strip reads as nameable things rather than blocks to hover over.
+TIER_ORDER = ["personal", "professional"]
+CATEGORIES = [
+    ("fiction", "#4F6F8F"), ("non-fiction", "#7895AE"), ("article", "#A9BDCD"),
+    ("audiobook", "#498D84"), ("podcast", "#95B2AE"),
+    ("self-improvement", "#665393"), ("hobby", "#A9A2B9"),
+    ("physical", "#4F7E4E"), ("mental", "#93AA92"),
+    ("film", "#9B5C6E"), ("series", "#C29AA7"), ("game", "#8C7A4A"),
+    ("networking", "#A6702F"),
 ]
-TIER_ORDER = [t for t, _ in TIERS]
-# The tier's darkest category stands in for it wherever one swatch is needed.
-TIER_COLOR = {t: cats[0][1] for t, cats in TIERS}
+TIERS = [(t, CATEGORIES) for t in TIER_ORDER]
 GROWTH_MODES = ["concurrent", "dedicated"]
 
 # Not a bucket - this is absent data, so it gets the faintest neutral there is.
@@ -78,12 +74,9 @@ BASELINE = "#c3c2b7"
 
 GROWTH_KEYS = []          # stack order for the strip
 GROWTH_COLOR = {}
-CATEGORY_COLOR = {}
-CATEGORY_TIER = {}
-for _tier, _cats in TIERS:
-    for _cat, _hex in _cats:
-        CATEGORY_COLOR[_cat] = _hex
-        CATEGORY_TIER[_cat] = _tier
+CATEGORY_COLOR = dict(CATEGORIES)
+for _tier in TIER_ORDER:
+    for _cat, _hex in CATEGORIES:
         for _mode in GROWTH_MODES:
             _key = f"{_tier}|{_cat}|{_mode}"
             GROWTH_KEYS.append(_key)

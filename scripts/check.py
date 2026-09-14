@@ -42,13 +42,16 @@ BUCKETS = {"sleep", "necessities", "obligations", "rest",
 CONFIDENCE = {"logged", "reconstructed"}
 MINUTES_PER_DAY = 1440
 
-# Growth ledger vocabulary. Two tiers deep: the tier is the comparison axis
-# that has to survive years, the category is the useful detail underneath.
-GROWTH_TIERS = {
-    "reading": {"fiction", "non-fiction", "article"},
-    "audio": {"podcast", "audiobook"},
-    "self-care": {"self-improvement", "hobby", "physical", "mental"},
-    "networking": {"networking"},
+# Growth ledger vocabulary. `tier` says whose growth it is and is the
+# comparison axis that has to survive years; `category` says what kind of
+# thing it was. The two are independent -- any category under either tier.
+GROWTH_TIERS = {"personal", "professional"}
+GROWTH_CATEGORIES = {
+    "fiction", "non-fiction", "article",
+    "podcast", "audiobook",
+    "self-improvement", "hobby", "physical", "mental",
+    "film", "series", "game",
+    "networking",
 }
 GROWTH_MODES = {"concurrent", "dedicated"}
 
@@ -231,17 +234,26 @@ def validate_time(path, known_projects, target_project, require_full_days):
     return problems, warnings, len(rows), len(per_day), per_day_bucket, fieldnames, rows
 
 
-def validate_growth(per_day_bucket, open_dates):
+def validate_growth(per_day_bucket, open_dates, known_targets):
     """The growth ledger. Deliberately not reconciled against 1440.
 
     A run with a podcast on is one row in the time log and two here, so these
     minutes can and should exceed the wall clock. What is checked is that the
     `bucket` each row echoes actually exists in the time log that day -- that
     is the only thing that can silently drift between the two files.
+
+    `target` is optional here (a walk is still a walk without one) but when
+    set it has to name a real targets.csv row, same as the time log's.
     """
     problems, warnings = [], []
     per_day_growth = defaultdict(int)
     fieldnames, rows = csv_io.read_rows(GROWTH_FILE)
+    # Same forward-only addition as validate_time's: the header catches up on
+    # the next normalize, historical rows just read as blank.
+    if "target" not in fieldnames:
+        idx = fieldnames.index("activity") + 1 if "activity" in fieldnames \
+            else len(fieldnames)
+        fieldnames = fieldnames[:idx] + ["target"] + fieldnames[idx:]
 
     for n, row in enumerate(rows, start=2):
         where = f"{GROWTH_FILE.name} line {n}"
@@ -265,9 +277,13 @@ def validate_growth(per_day_bucket, open_dates):
         if tier not in GROWTH_TIERS:
             problems.append(f"{where}: unknown tier {tier!r}, expected one of "
                             f"{sorted(GROWTH_TIERS)}")
-        elif category not in GROWTH_TIERS[tier]:
-            problems.append(f"{where}: {category!r} is not a category of "
-                            f"{tier!r} - expected {sorted(GROWTH_TIERS[tier])}")
+        if category not in GROWTH_CATEGORIES:
+            problems.append(f"{where}: unknown category {category!r}, expected "
+                            f"one of {sorted(GROWTH_CATEGORIES)}")
+
+        target = row.get("target", "").strip()
+        if target and target not in known_targets:
+            problems.append(f"{where}: target {target!r} is not in targets.csv")
 
         if row["mode"].strip() not in GROWTH_MODES:
             problems.append(f"{where}: mode must be one of {sorted(GROWTH_MODES)}, "
@@ -425,7 +441,7 @@ def main():
             per_day_bucket[key] += mins
     open_dates = {d for d, _ in opened[4]}
 
-    growth = validate_growth(per_day_bucket, open_dates)
+    growth = validate_growth(per_day_bucket, open_dates, targets[1])
     progress = validate_progress(targets[1])
 
     problems = sealed[0] + opened[0] + growth[0] + targets[0] + progress[0]

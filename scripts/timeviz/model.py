@@ -166,7 +166,7 @@ class Ledger:
 
     Everything drawn comes from here, and the two frames are deliberately
     allowed to disagree: a novel read while procrastinating is `slack` in the
-    time log *and* `reading/fiction` in the growth ledger. Reconciling them
+    time log *and* `personal/fiction` in the growth ledger. Reconciling them
     would destroy the comparison the chart exists to make.
     """
 
