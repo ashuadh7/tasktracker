@@ -106,8 +106,9 @@ A day seals when Ashu says it's done, or automatically when he starts logging a 
    Not "you had 2h of slack" — *"what were those two hours?"* Scrolling, YouTube, gaming, lying down, staring at the wall, recovering from a bad night. The answer goes in the `activity` column.
    **`slack / unaccounted` is a logging failure, not a finding.** The original question behind this whole tracker was *what accounts for the slack* — a row that just says "unaccounted" answers nothing.
 3. Residual < 0 → something overlaps. Find the overlap; never scale everything down to fit.
-4. Show the sealed day. Get approval.
-5. Append to `time-log.csv` → run `python scripts/check.py` → clear `open-day.csv`.
+4. **For every target that got a `targeted_work` row today, ask for a percent-complete update** — one batched question ("where'd you land on X, Y, Z?"), not one at a time, and only the targets actually touched today, not a sweep through everything open. This is the one standing exception to "conversational, not scheduled" below: sealing is the checkpoint where it's asked rather than waiting for him to volunteer it. Append the rows to `progress-log.csv` in the same step.
+5. Show the sealed day. Get approval.
+6. Append to `time-log.csv` → run `python scripts/check.py` → clear `open-day.csv`.
 
 Growth rows are written as they come up, not at sealing — they're already final the moment they're entered, because nothing about them has to add up. The one thing sealing changes for them: `check.py` stops treating a mismatched echoed `bucket` as a warning and starts treating it as an error, since the day it points at is now fixed.
 
@@ -173,6 +174,8 @@ Two shapes this shows up in:
 - **Asked for.** Ashu asking "where am I on X" is answered by reading the current trail back, not by prompting him to re-estimate everything open.
 
 **Never solicited on every `targeted_work` row.** A day full of project work doesn't mean a day full of percent updates — only write a row when Ashu actually states one.
+
+**Except at seal time.** Sealing a day is the one scheduled checkpoint (see "Sealing a day" above) — every target touched that day gets asked about, batched into one question, not the whole open set. That's what keeps the completion panel from going stale the way it did on 2026-08-25, when a week of real `targeted_work` logging sat behind a 0% because nobody was ever asked.
 
 `basis` is optional. Ask for it if it's natural in the moment; a shrug is a fine answer, and forcing one on every update is what would stop the updates happening at all. A percent lower than the target's last entry does need a note explaining the re-scope — `check.py` enforces that one.
 
